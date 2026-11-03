@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Harmonie Palette — couleurs et lumières pour figurines</title>
+<meta name="description" content="Importe un modèle 3D de figurine, teste tes lumières, peins par zones et obtiens tes rampes de couleurs.">
+<meta name="theme-color" content="#1F2226">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%231F2226'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%233EC6A0' stroke-width='8' stroke-dasharray='70 70'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%23D9764A' stroke-width='8' stroke-dasharray='20 120' stroke-dashoffset='-72'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Fraunces:ital,wght@1,400&family=Work+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"
+} }
+</script>
+<style>
+:root{
+  --bg:#1F2226; --bg2:#272b30; --bg3:#30353b; --line:#3b4148;
+  --paper:#F2EDE4; --dim:#a9a69f; --teal:#3EC6A0; --coral:#D9764A;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--paper);
+  font:400 14px/1.4 "Work Sans",system-ui,sans-serif;overflow:hidden}
+h1,h2{font-family:"Fredoka","Work Sans",sans-serif;font-weight:600;margin:0}
+.cap{font-family:"Fraunces",Georgia,serif;font-style:italic;color:var(--dim);font-size:13px}
+#app{display:grid;height:100%;grid-template-columns:1fr 360px;grid-template-rows:auto 1fr}
+header{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:8px 14px;
+  padding-top:max(8px,env(safe-area-inset-top));border-bottom:1px solid var(--line)}
+.logo{font-family:"Fredoka",sans-serif;font-weight:600;font-size:20px;color:var(--teal)}
+header .cap{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#stage{position:relative;min-height:0;background:radial-gradient(ellipse at 50% 35%,#2b3036,#1a1d20)}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#drop{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(31,34,38,.85);border:2px dashed var(--paper);font-family:"Fredoka";font-size:20px;pointer-events:none}
+#stage.over #drop{display:flex}
+#hud{position:absolute;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap}
+#hud2{position:absolute;left:10px;bottom:10px;right:10px;display:flex;gap:8px;align-items:flex-end;pointer-events:none}
+#hud2>*{pointer-events:auto}
+#info{font-size:12px;color:var(--dim);flex:1;pointer-events:none!important}
+#shots{display:flex;gap:6px}
+#shots img{height:46px;width:46px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer}
+button,.btn{font:500 13px "Work Sans",sans-serif;color:var(--paper);background:var(--bg3);
+  border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;min-height:34px}
+button:hover,.btn:hover{background:#3a4047}
+button.on{border-color:var(--coral);box-shadow:inset 0 0 0 1px var(--coral)}
+button.pri{background:var(--paper);color:var(--bg);border-color:var(--paper)}
+#side{display:flex;flex-direction:column;min-height:0;background:var(--bg2);border-left:1px solid var(--line)}
+#tabs{display:flex;border-bottom:1px solid var(--line)}
+#tabs button{flex:1;border:0;border-radius:0;background:none;padding:10px 4px;color:var(--dim)}
+#tabs button.on{color:var(--paper);box-shadow:inset 0 -2px 0 var(--coral)}
+.pane{display:none;overflow:auto;padding:14px;flex:1;min-height:0;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.pane.on{display:block}
+.row{display:flex;align-items:center;gap:8px;margin:8px 0}
+.row>label{width:92px;color:var(--dim);font-size:12px;flex:none}
+.row input[type=range]{flex:1;min-width:0;accent-color:var(--paper)}
+.row output{width:36px;text-align:right;font-size:12px;color:var(--dim)}
+.grid{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+h2{font-size:15px;margin:14px 0 4px}
+#wheelwrap{display:flex;justify-content:center;margin:4px 0}
+#wheel{width:100%;max-width:300px;aspect-ratio:1;touch-action:none;cursor:crosshair}
+#ringwrap{position:relative;width:150px;height:150px;flex:none}
+#ring{width:150px;height:150px;touch-action:none}
+#swatches{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.sw{flex:1;min-width:52px;border-radius:10px;height:58px;border:2px solid transparent;
+  display:flex;align-items:flex-end;justify-content:center;padding:3px;font-size:11px;cursor:pointer;
+  text-shadow:0 1px 2px rgba(0,0,0,.6);color:#fff}
+.sw.sel{border-color:var(--paper)}
+.sw.act{outline:2px solid var(--coral);outline-offset:2px}
+.light{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:10px 0;background:var(--bg)}
+.light h3{margin:0 0 4px;font:600 13px "Fredoka";display:flex;align-items:center;gap:8px}
+.light input[type=color]{width:34px;height:26px;border:0;background:none;padding:0}
+select{background:var(--bg3);color:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit}
+small{color:var(--dim)}
+.pin{border:1px solid var(--line);border-radius:10px;padding:10px;margin:10px 0;background:var(--bg)}
+.pin>summary::-webkit-details-marker{display:none}
+.pin h3{font:600 14px Fredoka,sans-serif;margin:0 0 8px}
+.pair{display:flex;align-items:flex-end;gap:8px}.pair>div{flex:1;min-width:0}.pair .arrow{flex:none;padding-bottom:12px;color:var(--dim)}
+.chip{border-radius:8px;height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;line-height:1.25;text-align:center}
+.chip b{font-weight:500;font-size:11px}
+.ramp{display:flex;gap:4px;margin-top:6px}.ramp .chip{flex:1;height:54px}
+.lbl{font-size:11px;color:var(--dim);margin:0 0 3px}
+.cap2{font-size:10px;color:var(--dim);text-align:center;margin-top:3px;line-height:1.25}
+.notes{margin:10px 0 0;padding-left:18px;font-size:12.5px;color:#d6d2c9}.notes li{margin:5px 0}
+.sug{display:flex;gap:4px;margin-top:6px}
+#gMap svg circle{cursor:pointer}
+@media (max-width:820px){
+  #tabs button{font-size:12px;padding:10px 2px}
+  #app{grid-template-columns:1fr;grid-template-rows:auto 48vh 1fr}
+  #side{border-left:0;border-top:1px solid var(--line)}
+  header .cap{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="logo">Harmonie</span>
+    <span class="cap">Palette &amp; lumières pour figurines — V1</span>
+  </header>
+
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="hud">
+      <button id="bOrbit" class="on" title="Un doigt fait tourner le modèle">Orbite</button>
+      <button id="bPaint" title="Un doigt peint, deux doigts font tourner">Peindre</button>
+      <button id="bProbe" title="Touche le modèle pour lire la couleur éclairée">Sonde</button>
+      <button id="bUndo">Annuler</button>
+      <button id="bBW" title="Voir en noir et blanc pour juger les valeurs">N&amp;B</button>
+      <select id="levels" title="Nombre de valeurs de gris"><option value="0">Continu</option><option value="3">3 valeurs</option><option value="5">5 valeurs</option><option value="7">7 valeurs</option></select>
+      <button id="bShot" class="pri">Capturer</button>
+    </div>
+    <div id="hud2">
+      <div id="info" class="cap">Charge un modèle STL, OBJ ou GLB (onglet Modèle) ou utilise la figurine de démo.</div>
+      <div id="shots"></div>
+    </div>
+    <div id="drop">Dépose ton modèle ici</div>
+  </div>
+
+  <aside id="side">
+    <div id="tabs">
+      <button data-t="couleurs" class="on">Couleurs</button>
+      <button data-t="lumieres">Lumières</button>
+      <button data-t="peinture">Peinture</button>
+      <button data-t="sonde">Sonde</button>
+      <button data-t="rampes">Rampes</button>
+      <button data-t="modele">Modèle</button>
+    </div>
+
+    <section class="pane on" id="p-couleurs">
+      <div class="grid" id="harmonies"></div>
+      <div id="wheelwrap"><canvas id="wheel" width="600" height="600"></canvas></div>
+      <div id="swatches"></div>
+      <div class="row"><label>Saturation</label><input type="range" id="sS" min="0" max="100"><output id="oS"></output></div>
+      <div class="row"><label>Luminosité</label><input type="range" id="sV" min="0" max="100"><output id="oV"></output></div>
+      <h2>Proportions</h2>
+      <div class="cap">Quelle part de chaque couleur sur la figurine.</div>
+      <div class="row" style="align-items:flex-start;gap:14px">
+        <div id="ringwrap"><canvas id="ring" width="300" height="300"></canvas></div>
+        <div style="flex:1;min-width:0">
+          <div class="grid" id="ratios"></div>
+          <div id="props"></div>
+        </div>
+      </div>
+      <div id="palScheme" class="cap" style="margin:6px 0 2px"></div>
+      <h2>Sur la figurine</h2>
+      <div class="cap">Relève les couleurs réellement peintes, leurs proportions et le type de schéma.</div>
+      <div class="grid"><button id="sRelever" class="pri">Relever sur la figurine</button><button id="sUse">Utiliser comme palette</button></div>
+      <div id="schema"></div>
+    </section>
+
+    <section class="pane" id="p-lumieres">
+      <h2>Presets</h2>
+      <div class="grid" id="presets"></div>
+      <div class="row"><label>Ambiance</label><input type="range" id="amb" min="0" max="100" value="18"><output id="oAmb"></output></div>
+      <div class="row"><label>Réalisme</label><input type="range" id="real" min="0" max="100" value="25"><output id="oReal">25</output></div>
+      <div class="grid" id="realPre"><button data-v="8">Aplats</button><button data-v="35">Peinture</button><button data-v="70">Doux</button><button data-v="100">Réaliste</button></div>
+      <div class="row"><label>Matière</label>
+        <select id="style">
+          <option value="paint">Couleurs peintes</option>
+          <option value="gray">Lumière seule (gris)</option>
+        </select></div>
+      <div class="row"><label>Ombres</label><button id="shadowBtn" class="on">Activées</button></div>
+      <div id="lights"></div>
+      <div class="cap">Astuce : le rendu Gris montre uniquement la lumière, comme une pièce zénithale.</div>
+    </section>
+
+    <section class="pane" id="p-peinture">
+      <div class="row"><label>Couleur</label><div id="activeSw" class="sw" style="flex:none;width:90px;height:36px"></div><small>choisie dans l'onglet Couleurs</small></div>
+      <div class="grid"><button id="tPaint" class="on">Pinceau</button><button id="tErase">Gomme</button></div>
+      <div class="row"><label>Taille</label><input type="range" id="bSize" min="1" max="40" value="10"><output id="oSize"></output></div>
+      <div class="row"><label>Force</label><input type="range" id="bStr" min="5" max="100" value="60"><output id="oStr"></output></div>
+      <div class="grid"><button id="bFill">Remplir tout</button><button id="bClear">Tout effacer</button></div>
+      <div class="cap">Pour peindre : bouton Peindre au-dessus du modèle. Souris : clic gauche peint, clic droit tourne. Tactile : un doigt peint, deux doigts tournent.</div>
+    </section>
+
+    <section class="pane" id="p-sonde">
+      <div class="cap">Mode Sonde (bouton au-dessus du modèle) : touche un point pour lire sa couleur peinte et sa couleur éclairée. Pose jusqu'à 8 points (A à H) pour comparer le haut et le bas d'une zone, ou plusieurs zones entre elles. Les repères ne s'affichent que dans ce mode.</div>
+      <div class="row"><label>Style de rampe</label><select id="rampStyle"><option value="subtil">Subtil</option><option value="classique" selected>Classique</option><option value="marque">Marqué</option></select></div>
+      <div id="probeOut"></div>
+      <div class="grid"><button id="bPinsClear">Tout effacer</button></div>
+    </section>
+
+    <section class="pane" id="p-rampes">
+      <div class="cap">Relève toutes les couleurs peintes visibles sur la figurine et dessine la rampe de chacune : lumière en haut, ombre en bas. Les cercles entre deux rampes sont des mélanges pour passer d'une zone à l'autre.</div>
+      <div class="grid"><button id="gAnalyse" class="pri">Analyser la figurine</button></div>
+      <div class="row"><label>Couleurs par rampe</label><div class="grid" id="gN" style="margin:0"><button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button><button data-n="5">5</button><button data-n="6">6</button><button data-n="7">7</button></div></div>
+      <div class="row"><label>Ou total fixe</label><select id="gTotal"><option value="0">Libre</option><option value="6">6 couleurs</option><option value="8">8 couleurs</option><option value="10">10 couleurs</option><option value="12">12 couleurs</option><option value="16">16 couleurs</option><option value="20">20 couleurs</option></select></div>
+      <div class="row"><label>Rampe basée sur</label><select id="gAnchor"><option value="paint">Couleur peinte</option><option value="lit">Couleur éclairée</option></select></div>
+      <div class="row"><label>Rampes</label><select id="gSrc"><option value="sug" selected>Suggérées</option><option value="mes">Mesurées</option></select></div>
+      <div class="row"><label>Style</label><select id="gStyle"><option value="subtil">Subtil</option><option value="classique" selected>Classique</option><option value="marque">Marqué</option></select></div>
+      <div class="row"><label>Passerelles</label><select id="gBridge"><option value="0">Aucune</option><option value="1">1 mélange</option><option value="2" selected>2 mélanges</option><option value="3">3 mélanges</option></select></div>
+      <div id="gMap" style="overflow-x:auto;background:rgba(0,0,0,.18);border-radius:10px;padding:10px;min-height:60px"><div class="cap">Touche « Analyser la figurine » pour construire la palette.</div></div>
+      <div id="gRead" class="cap" style="margin:8px 0;min-height:18px"></div>
+      <div id="gSim"></div>
+      <div id="gZones"></div>
+      <div class="grid"><button id="gImg">Image de la palette</button><button id="gCopy">Copier les hex</button><button id="gSend">Bases → Couleurs</button></div>
+      <ul class="notes" id="gNotes"></ul>
+    </section>
+
+    <section class="pane" id="p-modele">
+      <div class="grid">
+        <label class="btn pri">Importer un fichier<input type="file" id="file" accept=".stl,.obj,.glb,.gltf" hidden></label>
+        <button id="bDemo">Figurine de démo</button>
+      </div>
+      <div class="grid"><button id="bRotX">Pivoter X 90°</button><button id="bRotY">Pivoter Y 90°</button><button id="bFlip">Retourner</button><button id="bFrame">Recentrer</button></div>
+      <div class="row"><label>Couleur de base</label><input type="color" id="baseCol" value="#8e8a84"></div>
+      <div class="row"><label>Fond</label><input type="color" id="bgCol" value="#262a2f"></div>
+      <div class="cap">Les STL d'impression 3D sont souvent orientés Z vers le haut : ils sont redressés automatiquement. Plus le maillage est dense, plus la peinture est fine.</div>
+    </section>
+  </aside>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ================= COULEURS ================= */
+const HARMONIES = {
+  comp:  { name: 'Complémentaire',  offs: [0, 180] },
+  ana:   { name: 'Analogue',        offs: [0, 30, -30] },
+  triad: { name: 'Triade',          offs: [0, 120, 240] },
+  split: { name: 'Complém. scindé', offs: [0, 150, 210] },
+  tetra: { name: 'Tétrade',         offs: [0, 90, 180, 270] },
+  mono:  { name: 'Monochrome',      offs: [0, 0, 0] },
+  free:  { name: 'Libre',           offs: null }
+};
+const RATIOS = {
+  2: [[70, 30], [60, 40], [50, 50]],
+  3: [[70, 20, 10], [60, 30, 10], [50, 30, 20]],
+  4: [[55, 25, 15, 5], [40, 30, 20, 10], [25, 25, 25, 25]]
+};
+const MONO_V = [0.9, 0.62, 0.38];
+
+function hsv2rgb(h, s, v) {
+  h = ((h % 360) + 360) % 360 / 60;
+  const i = Math.floor(h), f = h - i, p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+  const [r, g, b] = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i % 6];
+  return [r, g, b];
+}
+const hex = (c) => '#' + hsv2rgb(c.h, c.s, c.v).map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+const textOn = (c) => (c.v > 0.7 && c.s < 0.7 ? '#222' : '#fff');
+
+const C = {
+  rule: 'triad',
+  colors: [{ h: 18, s: 0.75, v: 0.85 }, { h: 138, s: 0.75, v: 0.7 }, { h: 258, s: 0.75, v: 0.55 }],
+  ratios: [70, 20, 10],
+  sel: 0,
+  onChange: () => {}
+};
+const saved = store.get('hp-colors');
+if (saved && saved.colors?.length && HARMONIES[saved.rule]) Object.assign(C, saved);
+
+function applyRule(base) {
+  const offs = HARMONIES[C.rule].offs;
+  if (!offs) return;
+  C.colors.forEach((c, i) => { c.h = ((base + (offs[i] ?? 0)) % 360 + 360) % 360; });
+}
+function setHarmony(key) {
+  const base = C.colors[0].h, offs = HARMONIES[key].offs, n = offs ? offs.length : C.colors.length;
+  const proto = C.colors[0];
+  C.rule = key;
+  while (C.colors.length < n) C.colors.push({ h: base, s: proto.s, v: proto.v });
+  C.colors.length = n;
+  if (key === 'mono') C.colors.forEach((c, i) => { c.v = MONO_V[i]; });
+  applyRule(base);
+  C.sel = Math.min(C.sel, n - 1);
+  if (C.ratios.length !== n) C.ratios = (RATIOS[n] || RATIOS[3])[0].slice();
+  refreshColors();
+}
+function setRatio(i, v) {
+  const r = C.ratios, rest = 100 - v, others = r.reduce((a, x, j) => a + (j === i ? 0 : x), 0);
+  r.forEach((x, j) => { if (j !== i) r[j] = others > 0 ? x / others * rest : rest / (r.length - 1); });
+  r[i] = v;
+}
+
+/* --- cercle chromatique --- */
+const wheel = $('wheel'), wctx = wheel.getContext('2d');
+const WR = 285, WC = 300;
+let wheelBg = null;
+function buildWheel() {
+  const img = wctx.createImageData(600, 600), d = img.data;
+  for (let y = 0; y < 600; y++) for (let x = 0; x < 600; x++) {
+    const dx = x - WC, dy = y - WC, r = Math.hypot(dx, dy), o = (y * 600 + x) * 4;
+    if (r > WR) continue;
+    let a = Math.atan2(dy, dx) * 180 / Math.PI;
+    const [R, G, B] = hsv2rgb(a, r / WR, 1);
+    d[o] = R * 255; d[o + 1] = G * 255; d[o + 2] = B * 255;
+    d[o + 3] = r > WR - 1.5 ? 255 * (WR - r) / 1.5 : 255;
+  }
+  wheelBg = img;
+}
+function drawWheel() {
+  if (!wheelBg) buildWheel();
+  wctx.clearRect(0, 0, 600, 600);
+  wctx.putImageData(wheelBg, 0, 0);
+  const pts = C.colors.map((c) => {
+    const a = c.h * Math.PI / 180;
+    return [WC + Math.cos(a) * c.s * WR, WC + Math.sin(a) * c.s * WR];
+  });
+  if (C.rule !== 'free' && pts.length > 1) {
+    wctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? wctx.lineTo(x, y) : wctx.moveTo(x, y)));
+    wctx.closePath();
+    wctx.strokeStyle = 'rgba(0,0,0,.45)'; wctx.lineWidth = 3; wctx.stroke();
+  }
+  pts.forEach(([x, y], i) => {
+    wctx.beginPath(); wctx.arc(x, y, i === C.sel ? 24 : 18, 0, 7);
+    wctx.fillStyle = hex(C.colors[i]); wctx.fill();
+    wctx.lineWidth = i === C.sel ? 6 : 4; wctx.strokeStyle = '#fff'; wctx.stroke();
+    wctx.lineWidth = 1.5; wctx.strokeStyle = 'rgba(0,0,0,.5)';
+    wctx.beginPath(); wctx.arc(x, y, (i === C.sel ? 24 : 18) + 3, 0, 7); wctx.stroke();
+  });
+  wctx.save(); // le centre du cercle montre la luminosité de la couleur choisie
+  wctx.restore();
+}
+let drag = -1;
+function wheelPos(e) {
+  const b = wheel.getBoundingClientRect();
+  const x = (e.clientX - b.left) / b.width * 600 - WC, y = (e.clientY - b.top) / b.height * 600 - WC;
+  return { h: (Math.atan2(y, x) * 180 / Math.PI + 360) % 360, s: clamp(Math.hypot(x, y) / WR, 0, 1), x, y };
+}
+wheel.addEventListener('pointerdown', (e) => {
+  const p = wheelPos(e);
+  let best = -1, bd = 1e9;
+  C.colors.forEach((c, i) => {
+    const a = c.h * Math.PI / 180, d = Math.hypot(p.x - Math.cos(a) * c.s * WR, p.y - Math.sin(a) * c.s * WR);
+    if (d < bd) { bd = d; best = i; }
+  });
+  drag = bd < 70 ? best : -1;
+  if (drag >= 0) { C.sel = drag; wheel.setPointerCapture(e.pointerId); refreshColors(true); }
+});
+wheel.addEventListener('pointermove', (e) => {
+  if (drag < 0) return;
+  const p = wheelPos(e), offs = HARMONIES[C.rule].offs;
+  C.colors[drag].s = p.s;
+  if (offs) applyRule(p.h - offs[drag]); else C.colors[drag].h = p.h;
+  refreshColors(true);
+});
+wheel.addEventListener('pointerup', () => { drag = -1; store.set('hp-colors', C); });
+
+/* --- anneau des proportions --- */
+const ring = $('ring'), rctx = ring.getContext('2d');
+function drawRing() {
+  rctx.clearRect(0, 0, 300, 300);
+  let a0 = -Math.PI / 2;
+  const tot = C.ratios.reduce((a, b) => a + b, 0) || 1;
+  C.colors.forEach((c, i) => {
+    const a1 = a0 + (C.ratios[i] / tot) * Math.PI * 2;
+    rctx.beginPath(); rctx.arc(150, 150, 105, a0, a1);
+    rctx.strokeStyle = hex(c); rctx.lineWidth = i === C.sel ? 64 : 52; rctx.lineCap = 'butt'; rctx.stroke();
+    const m = (a0 + a1) / 2;
+    if (C.ratios[i] >= 6) {
+      rctx.fillStyle = textOn(c); rctx.font = '600 28px Fredoka, sans-serif';
+      rctx.textAlign = 'center'; rctx.textBaseline = 'middle';
+      rctx.fillText(Math.round(C.ratios[i]), 150 + Math.cos(m) * 105, 150 + Math.sin(m) * 105);
+    }
+    a0 = a1;
+  });
+  rctx.beginPath(); rctx.arc(150, 150, 74, 0, 7);
+  rctx.fillStyle = '#272b30'; rctx.fill();
+  rctx.fillStyle = hex(C.colors[C.sel]); rctx.beginPath(); rctx.arc(150, 150, 46, 0, 7); rctx.fill();
+}
+ring.addEventListener('pointerdown', (e) => {
+  const b = ring.getBoundingClientRect();
+  const x = (e.clientX - b.left) / b.width * 300 - 150, y = (e.clientY - b.top) / b.height * 300 - 150;
+  if (Math.hypot(x, y) < 70) return;
+  let a = Math.atan2(y, x) + Math.PI / 2; if (a < 0) a += Math.PI * 2;
+  const tot = C.ratios.reduce((p, q) => p + q, 0); let acc = 0;
+  for (let i = 0; i < C.ratios.length; i++) { acc += C.ratios[i] / tot * Math.PI * 2; if (a <= acc) { C.sel = i; break; } }
+  refreshColors(true);
+});
+
+/* --- interface couleurs --- */
+function buildStatic() {
+  $('harmonies').innerHTML = Object.entries(HARMONIES)
+    .map(([k, h]) => `<button data-h="${k}">${h.name}</button>`).join('');
+  $('harmonies').onclick = (e) => { const k = e.target.dataset.h; if (k) { setHarmony(k); store.set('hp-colors', C); } };
+  $('swatches').onclick = (e) => {
+    const s = e.target.closest('.sw'); if (!s) return;
+    C.sel = +s.dataset.i; refreshColors(true);
+  };
+  $('sS').oninput = (e) => { C.colors[C.sel].s = e.target.value / 100; refreshColors(true); };
+  $('sV').oninput = (e) => { C.colors[C.sel].v = e.target.value / 100; refreshColors(true); };
+  $('sS').onchange = $('sV').onchange = () => store.set('hp-colors', C);
+}
+function refreshColors(light) {
+  const n = C.colors.length, c = C.colors[C.sel];
+  document.querySelectorAll('#harmonies button').forEach((b) => b.classList.toggle('on', b.dataset.h === C.rule));
+  $('swatches').innerHTML = C.colors.map((k, i) =>
+    `<div class="sw ${i === C.sel ? 'sel' : ''}" data-i="${i}" style="background:${hex(k)};color:${textOn(k)};text-shadow:none">${hex(k).toUpperCase()}</div>`).join('');
+  $('sS').value = Math.round(c.s * 100); $('oS').textContent = Math.round(c.s * 100);
+  $('sV').value = Math.round(c.v * 100); $('oV').textContent = Math.round(c.v * 100);
+  const sw = $('activeSw'); sw.style.background = hex(c); sw.style.color = textOn(c); sw.style.textShadow = 'none'; sw.textContent = hex(c).toUpperCase();
+  $('ratios').innerHTML = (RATIOS[n] || []).map((r, i) => `<button data-r="${i}">${r.join('/')}</button>`).join('');
+  $('ratios').onclick = (e) => { const i = e.target.dataset.r; if (i != null) { C.ratios = RATIOS[n][i].slice(); refreshColors(); store.set('hp-colors', C); } };
+  $('props').innerHTML = C.colors.map((k, i) =>
+    `<div class="row" style="margin:4px 0"><span style="width:14px;height:14px;border-radius:4px;background:${hex(k)};flex:none"></span>` +
+    `<input type="range" min="0" max="100" value="${Math.round(C.ratios[i])}" data-i="${i}" style="flex:1;min-width:0;accent-color:${hex(k)}"><output>${Math.round(C.ratios[i])}</output></div>`).join('');
+  $('props').oninput = (e) => { const i = +e.target.dataset.i; if (isNaN(i)) return; setRatio(i, +e.target.value); drawRing();
+    [...$('props').querySelectorAll('input')].forEach((el, j) => { el.value = Math.round(C.ratios[j]); el.nextElementSibling.textContent = Math.round(C.ratios[j]); }); };
+  $('props').onchange = () => store.set('hp-colors', C);
+  drawWheel(); drawRing();
+  if (typeof updatePalScheme === 'function') updatePalScheme();
+  C.onChange(hex(c));
+}
+buildStatic();
+
+/* ================= Maths couleur (OKLab/OKLCH) et rampes suggérées ================= */
+const s2l = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+const l2s = (v) => 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
+const cl = (x, a, b) => Math.min(b, Math.max(a, x));
+function rgb2lch(c) {
+  const r = s2l(c[0]), g = s2l(c[1]), b = s2l(c[2]);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+  const a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+  return { L, C: Math.hypot(a, bb), h: (Math.atan2(bb, a) * 180 / Math.PI + 360) % 360 };
+}
+function lch2lin(L, C, h) {
+  const a = C * Math.cos(h * Math.PI / 180), b = C * Math.sin(h * Math.PI / 180);
+  const l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3);
+  const m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3);
+  const s = Math.pow(L - 0.0894841775 * a - 1.2914855480 * b, 3);
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+}
+const inGamut = (v) => v.every((x) => x >= -0.0005 && x <= 1.0005);
+function lch2rgb(L, C, h) { // si la couleur sort de l'écran, on réduit la saturation jusqu'à la faire rentrer
+  L = cl(L, 0, 1);
+  let v = lch2lin(L, C, h);
+  if (!inGamut(v)) {
+    let lo = 0, hi = C;
+    for (let i = 0; i < 22; i++) { const mid = (lo + hi) / 2; if (inGamut(lch2lin(L, mid, h))) lo = mid; else hi = mid; }
+    v = lch2lin(L, lo, h);
+  }
+  return v.map((x) => Math.round(cl(l2s(cl(x, 0, 1)), 0, 255)));
+}
+const relLum = (c) => 0.2126 * s2l(c[0]) + 0.7152 * s2l(c[1]) + 0.0722 * s2l(c[2]);
+const wcag = (a, b) => { const x = relLum(a), y = relLum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgb2hsv = (c) => {
+  const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: h * 60, s: mx ? d / mx : 0, v: mx };
+};
+const sgnArc = (from, to) => ((to - from + 540) % 360) - 180;
+
+const RAMP_STYLES = {
+  subtil: { s: 0.5, min: 0.30, name: 'Subtil' },
+  classique: { s: 1, min: 0.40, name: 'Classique' },
+  marque: { s: 1.6, min: 0.52, name: 'Marqué' }
+};
+const RAMP_NAMES_N = {
+  1: ['Base'], 2: ['Ombre', 'Lumière'], 3: ['Ombre', 'Base', 'Lumière'], 4: ['Ombre', 'Base', 'Lumière', 'Haute lum.'],
+  5: ['Ombre prof.', 'Ombre', 'Base', 'Lumière', 'Haute lum.'], 6: ['Ombre prof.', 'Ombre', 'Base', 'Lumière', 'Lum. claire', 'Haute lum.'],
+  7: ['Ombre prof.', 'Ombre', 'Ombre claire', 'Base', 'Lumière', 'Lum. claire', 'Haute lum.']
+};
+const COOL = 275, WARM = 95;
+
+/* ramp : couleurs mesurées de la plus claire à la plus sombre, [{label, c:[r,g,b]}] ;
+   opts.n : nombre de couleurs de la rampe (1 à 7) ; opts.anchor : 'paint' = on part de la couleur peinte, 'lit' = de la couleur vue sous l'éclairage */
+function suggestRamp(ramp, paint, key, opts) {
+  const st = RAMP_STYLES[key] || RAMP_STYLES.classique;
+  const n = cl(Math.round((opts && opts.n) || 5), 1, 7), byPaint = !!(opts && opts.anchor === 'paint');
+  const list = (ramp && ramp.length ? ramp : [{ label: 'Médian', c: paint }]).map((e) => ({ ...rgb2lch(e.c), c: e.c, label: e.label }));
+  list.sort((a, b) => b.L - a.L);
+  const lit = list[Math.floor((list.length - 1) / 2)];
+  const base = byPaint ? { ...rgb2lch(paint), c: paint } : lit;
+  const Lh = list[0].L, Ls = list[list.length - 1].L;
+  let lo = byPaint ? base.L - (lit.L - Ls) : Ls, hi = byPaint ? base.L + (Lh - lit.L) : Lh;
+  if (hi - lo < st.min) { lo = base.L - st.min * 0.55; hi = base.L + st.min * 0.45; } else { lo -= 0.02; hi += 0.02; }
+  lo = cl(lo, 0.13, 0.88); hi = cl(hi, 0.2, 0.97);
+  if (hi - lo < st.min) { if (hi >= 0.97) lo = hi - st.min; else hi = lo + st.min; }
+  const L0 = cl(base.L, lo + 0.08, hi - 0.08);
+  const bi = n === 1 ? 0 : n === 2 ? -1 : Math.floor((n - 1) / 2);
+  const Lv = [], T = [];
+  for (let i = 0; i < n; i++) {
+    if (n === 1) { Lv.push(L0); T.push(0); }
+    else if (n === 2) { Lv.push(i ? hi : lo); T.push(i ? 1 : -1); }
+    else if (i === bi) { Lv.push(L0); T.push(0); }
+    else if (i < bi) { Lv.push(L0 - (L0 - lo) * (bi - i) / bi); T.push((i - bi) / bi); }
+    else { Lv.push(L0 + (hi - L0) * (i - bi) / (n - 1 - bi)); T.push((i - bi) / (n - 1 - bi)); }
+  }
+  const gap = 0.045;
+  for (let i = 1; i < n; i++) Lv[i] = Math.max(Lv[i], Lv[i - 1] + gap);
+  for (let i = n - 2; i >= 0; i--) if (Lv[i] > Lv[i + 1] - gap) Lv[i] = Lv[i + 1] - gap;
+  const neutral = base.C < 0.015, maxShift = 22 * st.s;
+  const steps = T.map((t, i) => {
+    let h = base.h, C = base.C;
+    if (t !== 0) {
+      const tgt = t < 0 ? COOL : WARM;
+      let d = sgnArc(base.h, tgt);
+      if (Math.abs(d) > 150) d = t < 0 ? -Math.abs(d) : Math.abs(d);
+      h = (base.h + cl(d, -maxShift, maxShift) * Math.abs(t) + 360) % 360;
+      C = t < 0 ? base.C * (1 + 0.25 * st.s * (-t) * (1 + 0.6 * t)) : base.C * (1 - 0.35 * Math.pow(t, 1.5));
+      if (neutral) { C = 0.03 * st.s * Math.abs(t); h = tgt; }
+    }
+    const rgb = lch2rgb(Lv[i], C, h), back = rgb2lch(rgb);
+    return { name: RAMP_NAMES_N[n][i], rgb, L: back.L, C: back.C, h: back.h,
+      dh: neutral ? 0 : Math.round(sgnArc(base.h, back.h)), dC: base.C > 0.01 ? Math.round((back.C / base.C - 1) * 100) : 0 };
+  });
+
+  /* conseils : on compare la rampe mesurée à ce qu'on vise */
+  const notes = [], range = Lh - Ls, dark = list[list.length - 1], light = list[0], nb = lit, nbNeutral = nb.C < 0.015;
+  if (range < 0.25) notes.push(`Écart de valeur faible (${Math.round(range * 100)} points) : la zone paraîtra plate. Vise au moins ${Math.round(st.min * 100)} points entre l'ombre et la lumière.`);
+  else if (range > 0.72) notes.push(`Écart de valeur très fort (${Math.round(range * 100)} points) : très graphique, bien pour un effet comics, risqué pour du réalisme.`);
+  else notes.push(`Écart de valeur correct (${Math.round(range * 100)} points entre l'ombre et la lumière).`);
+  if (!nbNeutral && dark.C > 0.02 && light.C > 0.02 && list.length > 1) {
+    const dh = sgnArc(dark.h, light.h);
+    const darkCool = Math.abs(sgnArc(dark.h, COOL)) < Math.abs(sgnArc(light.h, COOL));
+    if (Math.abs(sgnArc(nb.h, WARM)) < 45) notes.push('Teinte jaune : le hue shifting se fait plutôt vers l\'orange ou l\'olive dans l\'ombre et vers un jaune pâle dans la lumière.');
+    else if (Math.abs(dh) < 5) notes.push(`Aucun décalage de teinte entre l'ombre et la lumière : ajoute du hue shifting, ombres vers le bleu-violet (${COOL}°), lumières vers le jaune-orangé (${WARM}°).`);
+    else if (darkCool) notes.push(`Décalage de teinte de ${Math.abs(Math.round(dh))}° : ombres plus froides, lumières plus chaudes. C'est le bon sens.`);
+    else notes.push(`Décalage de teinte de ${Math.abs(Math.round(dh))}° mais dans le sens inverse (ombres plus chaudes que les lumières). À inverser pour un rendu plus naturel, sauf effet voulu.`);
+  } else if (nbNeutral) notes.push('Zone presque neutre : teinte les ombres vers le bleu-violet et les lumières vers un jaune très pâle pour éviter le gris plat.');
+  if (!nbNeutral && dark.C < nb.C * 0.8 && list.length > 1) notes.push(`Ombres ternes (saturation ${Math.round((dark.C / nb.C - 1) * 100)} % par rapport à la base) : sature-les un peu, un ombrage trop gris salit la couleur.`);
+  if (list.length > 2) {
+    const gaps = []; for (let i = 1; i < list.length; i++) gaps.push(list[i - 1].L - list[i].L);
+    if (Math.max(...gaps) > 2.6 * Math.max(Math.min(...gaps), 0.01)) notes.push('Paliers inégaux : un saut de valeur est bien plus grand que les autres. Ajoute un ton intermédiaire à cet endroit.');
+  }
+  if (n <= 2) notes.push(n === 1 ? 'Une seule couleur : pas de volume, la zone sera plate.' : 'Deux couleurs seulement : ombre et lumière, sans ton de base. Bien pour des aplats très graphiques.');
+  return { steps, notes, base: lit.c };
+}
+
+/* contraste entre deux zones (couleurs médianes) */
+function zoneContrast(a, b) {
+  const A = rgb2lch(a), B = rgb2lch(b), dL = Math.abs(A.L - B.L), dh = Math.abs(sgnArc(A.h, B.h)), r = wcag(a, b);
+  const out = [`Contraste de valeur A/B : ${Math.round(dL * 100)} points (rapport ${r.toFixed(1)}:1).`];
+  if (dL < 0.12) out.push('Valeurs trop proches : en noir et blanc les deux zones se fondent. Éclaircis l\'une ou assombris l\'autre d\'au moins 12 à 15 points.');
+  else if (dL > 0.3) out.push('Bonne séparation de valeur : les deux zones se lisent même de loin.');
+  if (A.C > 0.03 && B.C > 0.03) {
+    if (dh >= 150) out.push('Teintes complémentaires : très vibrant. Garde des valeurs différentes pour éviter l\'effet qui « vibre ».');
+    else if (dh >= 100 && dh < 150) out.push('Teintes en triade : harmonie vive et équilibrée.');
+    else if (dh < 30 && dL < 0.2) out.push('Teintes et valeurs proches : peu lisible. Décale une teinte de 20 à 30° ou sépare les valeurs.');
+    else if (dh < 30) out.push('Teintes analogues : harmonie douce, le contraste vient surtout de la valeur.');
+  }
+  return out;
+}
+
+function mixRgb(c1, c2, t) { // mélange perceptuel (OKLab) entre deux couleurs
+  const A = rgb2lch(c1), B = rgb2lch(c2), r = Math.PI / 180;
+  const a1 = A.C * Math.cos(A.h * r), b1 = A.C * Math.sin(A.h * r), a2 = B.C * Math.cos(B.h * r), b2 = B.C * Math.sin(B.h * r);
+  const a = a1 + (a2 - a1) * t, b = b1 + (b2 - b1) * t;
+  return lch2rgb(A.L + (B.L - A.L) * t, Math.hypot(a, b), (Math.atan2(b, a) / r + 360) % 360);
+}
+/* zs : [{ share, base:[r,g,b], cols:[[r,g,b],...] }] une entrée par zone de couleur */
+function globalNotes(zs) {
+  const notes = [], all = zs.flatMap((z) => z.cols.map(rgb2lch));
+  if (!all.length) return notes;
+  const Lmin = Math.min(...all.map((c) => c.L)), Lmax = Math.max(...all.map((c) => c.L));
+  notes.push(`${zs.length} zone${zs.length > 1 ? 's' : ''} de couleur, valeurs de ${Math.round(Lmin * 100)} à ${Math.round(Lmax * 100)} sur 100.`);
+  if (Lmin > 0.28) notes.push('Aucune ombre vraiment profonde : l\'ensemble manque d\'ancrage. Assombris l\'ombre la plus profonde, un noir teinté de bleu ou de brun fonctionne bien.');
+  if (Lmax < 0.88) notes.push('Aucune lumière franche : les points les plus clairs restent sous 88. Garde un éclat presque blanc teinté pour les reflets et les arêtes.');
+  if (zs.length === 1) notes.push('Une seule zone détectée : peins d\'autres zones (mode Peindre) pour obtenir plusieurs rampes et comparer leurs teintes.');
+  const B = zs.map((z) => rgb2lch(z.base));
+  let warm = 0, cool = 0, tot = 0, dom = null;
+  zs.forEach((z, i) => {
+    if (B[i].C < 0.03) return;
+    tot += z.share; const h = B[i].h;
+    if (h < 110 || h >= 330) warm += z.share; else if (h >= 170 && h < 300) cool += z.share;
+    if (!dom || z.share > dom.share) dom = { share: z.share, h };
+  });
+  if (tot > 0 && dom && (warm / tot > 0.8 || cool / tot > 0.8)) {
+    const acc = lch2rgb(0.62, 0.13, (dom.h + 180) % 360), hx = '#' + acc.map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+    notes.push(`Palette très ${warm / tot > 0.8 ? 'chaude' : 'froide'} : ajoute un petit accent complémentaire (environ 10 % de la surface) pour la faire vivre, par exemple ${hx}.`);
+  }
+  return notes;
+}
+
+/* ================= Type de schéma de couleurs (dominante, analogue, complémentaire…) ================= */
+const HUE_NAMES = [[15, 'rouge'], [40, 'orange'], [65, 'jaune'], [90, 'jaune-vert'], [150, 'vert'], [190, 'turquoise'], [215, 'cyan'], [255, 'bleu'], [285, 'violet'], [330, 'magenta'], [345, 'rose'], [361, 'rouge']];
+const hueName = (h) => HUE_NAMES.find(([m]) => ((h % 360) + 360) % 360 < m)[1];
+const neutralName = (v) => (v < 0.18 ? 'noir' : v < 0.45 ? 'gris foncé' : v < 0.78 ? 'gris' : 'blanc ou gris clair');
+const hArc = (a, b) => Math.abs(sgnArc(a, b));
+const circMean = (items) => {
+  let x = 0, y = 0;
+  items.forEach((m) => { x += m.p * Math.cos(m.h * Math.PI / 180); y += m.p * Math.sin(m.h * Math.PI / 180); });
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+};
+
+/* zs : [{ rgb:[r,g,b], share }] ; teintes mesurées sur la roue HSV, comme le cercle de l'app */
+function classifyScheme(zs) {
+  const items = zs.map((z) => ({ ...rgb2hsv(z.rgb), share: z.share, rgb: z.rgb }));
+  const tot = items.reduce((a, z) => a + z.share, 0) || 1;
+  items.forEach((z) => { z.p = z.share / tot; z.chromatic = z.s >= 0.15 && z.v >= 0.12; });
+  const chrom = items.filter((z) => z.chromatic), neut = items.filter((z) => !z.chromatic);
+  const neutP = neut.reduce((a, z) => a + z.p, 0), T = chrom.reduce((a, z) => a + z.p, 0);
+  const out = { name: '', headline: '', clusters: [], neutral: neutP, neutralNames: [...new Set(neut.map((z) => neutralName(z.v)))], notes: [], items };
+  if (!chrom.length) { out.name = 'Palette neutre'; out.headline = 'Que du noir, du blanc et du gris.'; out.notes.push('Aucune teinte : ajoute au moins une couleur franche, même en petite quantité, pour donner un point focal.'); return out; }
+
+  let cl2 = chrom.map((z) => ({ members: [z] })), merged = true;
+  while (merged) {
+    merged = false;
+    for (let i = 0; i < cl2.length && !merged; i++) for (let j = i + 1; j < cl2.length && !merged; j++)
+      if (cl2[i].members.some((a) => cl2[j].members.some((b) => hArc(a.h, b.h) <= 25))) { cl2[i].members.push(...cl2[j].members); cl2.splice(j, 1); merged = true; }
+  }
+  const clusters = cl2.map((c) => {
+    const p = c.members.reduce((a, m) => a + m.p, 0), h = circMean(c.members), big = c.members.reduce((a, m) => (m.p > a.p ? m : a));
+    return { h, p, name: hueName(h), rgb: big.rgb, spread: Math.max(...c.members.map((m) => hArc(m.h, h))) };
+  }).sort((a, b) => b.p - a.p);
+  clusters.forEach((c, i) => { c.role = c.p >= 0.45 ? 'Dominante' : c.p >= 0.15 ? 'Secondaire' : 'Accent'; });
+  out.clusters = clusters;
+
+  const k = clusters.length, hs = clusters.map((c) => c.h).sort((a, b) => a - b);
+  const gaps = hs.map((h, i) => (((hs[(i + 1) % k] - h) + 360) % 360) || 360);
+  const span = k === 1 ? 0 : 360 - Math.max(...gaps), dev = (arr, ideal) => Math.round(arr.reduce((a, g) => a + Math.abs(g - ideal), 0) / arr.length);
+  let name, detail = '';
+  if (k === 1) {
+    const all = cl2[0].members; let sp = 0;
+    all.forEach((a) => all.forEach((b) => { sp = Math.max(sp, hArc(a.h, b.h)); }));
+    if (sp <= 14) { name = 'Monochrome'; detail = `une seule famille de teinte (${clusters[0].name})`; }
+    else { name = 'Analogue'; detail = `teintes voisines (${clusters[0].name}) sur ${Math.round(sp)}° de la roue`; }
+  }
+  else if (span <= 75) { name = 'Analogue'; detail = `teintes voisines sur ${Math.round(span)}° de la roue`; }
+  else if (k === 2) {
+    const d = hArc(clusters[0].h, clusters[1].h);
+    if (d >= 150) { name = 'Complémentaire'; detail = `deux teintes à ${Math.round(d)}° l'une de l'autre (écart à l'idéal : ${Math.round(180 - d)}°)`; }
+    else { name = 'Contraste de teintes'; detail = `deux teintes à ${Math.round(d)}° l'une de l'autre`; }
+  } else if (k === 3) {
+    const g = [...gaps].sort((a, b) => a - b);
+    if (gaps.every((x) => Math.abs(x - 120) <= 30)) { name = 'Triade'; detail = `trois teintes espacées de ${gaps.map(Math.round).join('°, ')}° (écart moyen à l'idéal : ${dev(gaps, 120)}°)`; }
+    else if (g[0] <= 75 && g[1] >= 125 && g[2] >= 125) { name = 'Complémentaire scindé'; detail = 'une teinte face à deux teintes voisines de sa complémentaire'; }
+    else { name = 'Polychrome'; detail = '3 teintes sans relation régulière sur la roue'; }
+  } else if (k === 4) {
+    if (gaps.every((x) => Math.abs(x - 90) <= 30)) { name = 'Tétrade'; detail = `quatre teintes régulières (écart moyen à l'idéal : ${dev(gaps, 90)}°)`; }
+    else if (hArc(hs[0], hs[2]) >= 150 && hArc(hs[1], hs[3]) >= 150) { name = 'Double complémentaire'; detail = 'deux paires de complémentaires'; }
+    else { name = 'Polychrome'; detail = '4 teintes sans relation régulière'; }
+  } else { name = 'Polychrome'; detail = `${k} familles de teintes réparties sur la roue`; }
+
+  const top = clusters[0].p / T;
+  out.name = name;
+  out.headline = `${detail}. ${top >= 0.5 ? `Dominante ${clusters[0].name} (${Math.round(top * 100)} % des teintes).` : 'Pas de dominante nette.'}`;
+  const sec = clusters[1] ? clusters[1].p / T : 0, thr = clusters[2] ? clusters[2].p / T : 0;
+  if (k >= 3 && top >= 0.55 && top <= 0.75 && sec >= 0.15 && sec <= 0.4 && thr <= 0.15) out.notes.push('Répartition proche de la règle 60/30/10 : une dominante, un secondaire, un accent. C\'est un équilibre sûr.');
+  else if (k === 2 && top >= 0.55 && top <= 0.8) out.notes.push('Dominante et secondaire bien hiérarchisées (environ 60/30). Un petit accent d\'une troisième teinte peut compléter.');
+  else if (k >= 2 && top > 0.8) out.notes.push('Une teinte écrase les autres : ajoute un accent (environ 10 % de la surface) pour relancer l\'œil.');
+  else if (k >= 3 && top < 0.4) out.notes.push('Répartition équilibrée sans hiérarchie : l\'œil ne sait pas où aller. Choisis une dominante (vers 60 %) et réduis les autres.');
+  if (k === 1 && name === 'Monochrome') out.notes.push('Une seule teinte : joue sur le hue shifting et les valeurs pour la rendre riche, ou ajoute un accent complémentaire.');
+  if (neutP > 0.5) out.notes.push(`Surface surtout neutre (${Math.round(neutP * 100)} %) : les couleurs vives ressortiront beaucoup, garde-les pour les points d'intérêt.`);
+  return out;
+}
+
+function updatePalScheme() {
+  const el = document.getElementById('palScheme'); if (!el) return;
+  const s = classifyScheme(C.colors.map((c, i) => ({ rgb: hsv2rgb(c.h, c.s, c.v).map((x) => Math.round(x * 255)), share: C.ratios[i] ?? 1 })));
+  const c0 = s.clusters[0];
+  el.innerHTML = `Palette actuelle : <b>${s.name}</b>${c0 ? ` · ${c0.role.toLowerCase()} ${c0.name} (${Math.round(c0.p * 100)} %)` : ''}`;
+}
+
+/* ================= 3D : scène, lumières, matériaux ================= */
+let BVH = null;
+try {
+  BVH = await import('three-mesh-bvh');
+  THREE.Mesh.prototype.raycast = BVH.acceleratedRaycast;
+  THREE.BufferGeometry.prototype.computeBoundsTree = BVH.computeBoundsTree;
+  THREE.BufferGeometry.prototype.disposeBoundsTree = BVH.disposeBoundsTree;
+} catch (err) { console.warn('BVH indisponible, peinture en mode simple', err); }
+
+const canvas = $('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#262a2f');
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 100);
+const TARGET = new THREE.Vector3(0, 1, 0);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.12;
+controls.minDistance = 1.2; controls.maxDistance = 14;
+function frame() { camera.position.set(0.4, 1.5, 5); controls.target.copy(TARGET); controls.update(); }
+frame();
+
+const ambient = new THREE.AmbientLight('#ffffff', 0.5);
+scene.add(ambient);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(4, 64), new THREE.ShadowMaterial({ opacity: 0.4 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -0.002; ground.receiveShadow = true;
+scene.add(ground);
+
+/* --- lumières : 3 emplacements, chacun directionnel ou ponctuel (OSL) --- */
+const LIGHT_DEFAULT = () => ({ on: false, type: 'dir', color: '#ffffff', int: 1, az: 40, el: 45, dist: 1.2 });
+const L = [LIGHT_DEFAULT(), LIGHT_DEFAULT(), LIGHT_DEFAULT()];
+const lightRig = L.map((_, i) => {
+  const dir = new THREE.DirectionalLight('#fff', 1);
+  dir.shadow.mapSize.set(2048, 2048);
+  Object.assign(dir.shadow.camera, { left: -2.4, right: 2.4, top: 2.4, bottom: -2.4, near: 0.5, far: 14 });
+  dir.shadow.bias = -0.0004; dir.shadow.normalBias = 0.02; dir.shadow.radius = 3;
+  dir.target.position.copy(TARGET);
+  const pt = new THREE.PointLight('#fff', 1, 0, 2);
+  pt.shadow.mapSize.set(1024, 1024); pt.shadow.camera.near = 0.1; pt.shadow.camera.far = 14;
+  pt.shadow.bias = -0.001; pt.shadow.normalBias = 0.02;
+  const gz = new THREE.Mesh(new THREE.SphereGeometry(0.09, 20, 14), new THREE.MeshBasicMaterial({ color: '#fff', depthTest: false }));
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+    new THREE.LineBasicMaterial({ color: '#fff', transparent: true, opacity: 0.35 }));
+  gz.renderOrder = 10; line.renderOrder = 9;
+  scene.add(dir, dir.target, pt, gz, line);
+  return { dir, pt, gz, line };
+});
+let shadowsOn = true;
+const lightPos = (l, R) => {
+  const a = l.az * Math.PI / 180, e = l.el * Math.PI / 180;
+  return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)).multiplyScalar(R).add(TARGET);
+};
+function applyLights() {
+  L.forEach((l, i) => {
+    const r = lightRig[i], isDir = l.type === 'dir';
+    r.dir.visible = l.on && isDir; r.pt.visible = l.on && !isDir;
+    r.dir.castShadow = r.dir.visible && shadowsOn; r.pt.castShadow = r.pt.visible && shadowsOn;
+    r.dir.color.set(l.color); r.pt.color.set(l.color);
+    r.dir.intensity = l.int * 3; r.pt.intensity = l.int * 14;
+    r.dir.position.copy(lightPos(l, 6));
+    r.pt.position.copy(lightPos(l, l.dist));
+    const gp = isDir ? lightPos(l, 3.2) : lightPos(l, l.dist);
+    r.gz.position.copy(gp); r.gz.material.color.set(l.color); r.gz.visible = l.on;
+    r.line.visible = l.on;
+    r.line.geometry.setFromPoints([gp, TARGET.clone()]);
+    r.line.material.color.set(l.color);
+  });
+  store.set('hp-lights', { L, amb: ambient.intensity, shadowsOn });
+  markProbe();
+}
+
+/* --- matériaux : rendus stylisés --- */
+const REAL = { value: 0.25 };
+// Réalisme 0 : la lumière est découpée en 3-4 aplats ; plus on monte, plus il y a de paliers, jusqu'au dégradé physique à 100.
+function stylize(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uReal = REAL;
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', 'uniform float uReal;\nvoid main() {')
+      .replace('#include <opaque_fragment>', `
+        {
+          float la = max(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.02);
+          float kk = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722)) / la;
+          float nb = mix(3.0, 14.0, clamp(uReal / 0.8, 0.0, 1.0));
+          float st = 1.0 / nb;
+          float kq = pow(floor(sqrt(max(kk, 0.0)) / st + 0.5) * st, 2.0);
+          float kf = mix(kq, kk, smoothstep(0.7, 1.0, uReal));
+          outgoingLight *= kf / max(kk, 1e-4);
+        }
+        #include <opaque_fragment>`);
+  };
+  mat.customProgramCacheKey = () => 'stylize-v1';
+  return mat;
+}
+function setRealism(v) {
+  REAL.value = v;
+  MATS.paint.roughness = MATS.gray.roughness = 1.0 - 0.3 * v;
+}
+const MATS = {
+  paint: stylize(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 })),
+  gray: stylize(new THREE.MeshStandardMaterial({ color: '#c9c7c3', roughness: 0.9, metalness: 0 }))
+};
+let styleKey = 'paint';
+renderer.debug.onShaderError = () => { // filet de sécurité : retour au rendu standard si le shader stylisé ne compile pas
+  Object.values(MATS).forEach((m) => { m.onBeforeCompile = () => {}; m.customProgramCacheKey = () => 'plain'; m.needsUpdate = true; });
+  $('info').textContent = 'Le curseur de réalisme n\'est pas disponible sur cet appareil.';
+};
+
+/* ================= Modèle ================= */
+const M = { mesh: null, geo: null, painted: null, seen: null, stamp: 0, undo: [], base: new THREE.Color('#8e8a84') };
+
+function toGeometry(obj) {
+  obj.updateMatrixWorld(true);
+  const gs = [];
+  obj.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    let g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    for (const k of Object.keys(g.attributes)) if (k !== 'position') g.deleteAttribute(k);
+    g.morphAttributes = {};
+    if (g.index) g = g.toNonIndexed();
+    gs.push(g);
+  });
+  if (!gs.length) throw new Error('Aucun maillage dans ce fichier');
+  return BufferGeometryUtils.mergeGeometries(gs);
+}
+function refit(g) {
+  g.computeBoundingBox();
+  const b = g.boundingBox;
+  g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
+}
+function rebuildBVH(g) {
+  if (!BVH) return;
+  g.boundsTree && g.disposeBoundsTree();
+  g.computeBoundsTree({ maxLeafTris: 8 });
+}
+function setModel(g, label, fromSTL) {
+  if (fromSTL) g.rotateX(-Math.PI / 2);
+  for (const k of Object.keys(g.attributes)) if (k !== 'position') g.deleteAttribute(k);
+  g.computeBoundingBox();
+  const sz = new THREE.Vector3(); g.boundingBox.getSize(sz);
+  const s = 2 / Math.max(sz.x, sz.y, sz.z, 1e-6);
+  g.scale(s, s, s);
+  refit(g);
+  g = BufferGeometryUtils.mergeVertices(g, 1e-4);
+  g.computeVertexNormals();
+  const n = g.attributes.position.count, col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { col[i * 3] = M.base.r; col[i * 3 + 1] = M.base.g; col[i * 3 + 2] = M.base.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  rebuildBVH(g);
+  if (M.mesh) { scene.remove(M.mesh); M.geo.disposeBoundsTree?.(); M.geo.dispose(); }
+  clearPins();
+  M.geo = g; M.painted = new Uint8Array(n); M.seen = new Int32Array(n); M.stamp = 0; M.undo = [];
+  M.mesh = new THREE.Mesh(g, MATS[styleKey]);
+  M.mesh.castShadow = M.mesh.receiveShadow = true;
+  scene.add(M.mesh);
+  const tris = g.index ? g.index.count / 3 : n / 3;
+  $('info').textContent = `${label} — ${Math.round(tris).toLocaleString('fr-FR')} triangles, ${n.toLocaleString('fr-FR')} sommets` +
+    (tris > 1.2e6 ? ' (très dense : la peinture peut ramer)' : tris < 20000 ? ' (peu dense : la peinture sera grossière)' : '') +
+    (BVH ? '' : ' — mode simple');
+  frame();
+}
+function rotateModel(axis, ang) {
+  if (!M.geo) return;
+  M.geo[axis](ang); refit(M.geo); rebuildBVH(M.geo);
+  M.geo.computeBoundingBox(); M.geo.computeBoundingSphere();
+}
+
+/* --- figurine de démo, assez dense pour peindre --- */
+function demoFigurine() {
+  const g = new THREE.Group();
+  const add = (geo, x, y, z, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); g.add(m); return m; };
+  add(new THREE.CylinderGeometry(0.62, 0.68, 0.1, 96, 4), 0, 0.05, 0);
+  add(new THREE.CylinderGeometry(0.2, 0.42, 0.9, 96, 40), 0, 0.55, 0);
+  add(new THREE.CapsuleGeometry(0.2, 0.28, 24, 64), 0, 1.2, 0);
+  add(new THREE.SphereGeometry(0.19, 96, 64), 0, 1.62, 0.02);
+  add(new THREE.ConeGeometry(0.24, 0.5, 96, 24), 0, 1.97, 0);
+  add(new THREE.CapsuleGeometry(0.06, 0.4, 16, 48), 0.3, 1.16, 0.12, 0.6, -0.5);
+  add(new THREE.CapsuleGeometry(0.06, 0.4, 16, 48), -0.3, 1.16, 0.12, 0.6, 0.5);
+  add(new THREE.CylinderGeometry(0.025, 0.025, 2.0, 32, 64), 0.52, 1.0, 0.25);
+  add(new THREE.SphereGeometry(0.1, 64, 48), 0.52, 2.05, 0.25);
+  return toGeometry(g);
+}
+
+/* --- import --- */
+async function loadFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  $('info').textContent = `Chargement de ${file.name}…`;
+  try {
+    if (ext === 'stl') {
+      setModel(new STLLoader().parse(await file.arrayBuffer()), file.name, true);
+    } else if (ext === 'obj') {
+      setModel(toGeometry(new OBJLoader().parse(await file.text())), file.name, false);
+    } else if (ext === 'glb' || ext === 'gltf') {
+      const buf = await file.arrayBuffer();
+      const gltf = await new Promise((ok, ko) => new GLTFLoader().parse(buf, '', ok, ko));
+      setModel(toGeometry(gltf.scene), file.name, false);
+    } else throw new Error('Format non pris en charge (STL, OBJ, GLB)');
+  } catch (err) { console.error(err); $('info').textContent = 'Import impossible : ' + (err.message || err); }
+}
+
+/* ================= Peinture par sommets ================= */
+const P = { mode: 'orbit', tool: 'paint', size: 10, str: 0.6, color: new THREE.Color('#d9764a'), active: false, last: null, stroke: null };
+const raycaster = new THREE.Raycaster(); raycaster.firstHitOnly = true;
+const brushViz = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12),
+  new THREE.MeshBasicMaterial({ color: '#fff', wireframe: true, transparent: true, opacity: 0.35, depthWrite: false }));
+brushViz.visible = false; scene.add(brushViz);
+const radius = () => P.size * 0.01;
+
+function pick(e) {
+  if (!M.mesh) return null;
+  const b = canvas.getBoundingClientRect();
+  raycaster.setFromCamera(new THREE.Vector2(((e.clientX - b.left) / b.width) * 2 - 1, -((e.clientY - b.top) / b.height) * 2 + 1), camera);
+  return raycaster.intersectObject(M.mesh, false)[0] || null;
+}
+function touchVertex(vi, pt, nrm, r, target) {
+  const pos = M.geo.attributes.position, nor = M.geo.attributes.normal, col = M.geo.attributes.color;
+  if (M.seen[vi] === M.stamp) return;
+  M.seen[vi] = M.stamp;
+  const dx = pos.getX(vi) - pt.x, dy = pos.getY(vi) - pt.y, dz = pos.getZ(vi) - pt.z;
+  const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  if (d > r) return;
+  if (nor.getX(vi) * nrm.x + nor.getY(vi) * nrm.y + nor.getZ(vi) * nrm.z < 0.15) return;
+  const t = 1 - d / r, w = P.str * t * t * (3 - 2 * t);
+  if (!P.stroke.has(vi)) P.stroke.set(vi, [col.getX(vi), col.getY(vi), col.getZ(vi), M.painted[vi]]);
+  col.setXYZ(vi, col.getX(vi) + (target.r - col.getX(vi)) * w, col.getY(vi) + (target.g - col.getY(vi)) * w, col.getZ(vi) + (target.b - col.getZ(vi)) * w);
+  if (P.tool === 'paint') { if (w > 0.04) M.painted[vi] = 1; } else if (w > 0.5) M.painted[vi] = 0;
+}
+function stamp(hit) {
+  const r = radius(), pt = hit.point, nrm = hit.face.normal, target = P.tool === 'paint' ? P.color : M.base;
+  M.stamp++;
+  if (BVH && M.geo.boundsTree) {
+    const sph = new THREE.Sphere(pt, r), idx = M.geo.index;
+    M.geo.boundsTree.shapecast({
+      intersectsBounds: (box) => (sph.intersectsBox(box) ? BVH.INTERSECTED : BVH.NOT_INTERSECTED),
+      intersectsTriangle: (tri, ti) => { for (let k = 0; k < 3; k++) touchVertex(idx.getX(ti * 3 + k), pt, nrm, r, target); return false; }
+    });
+  } else {
+    const n = M.geo.attributes.position.count;
+    for (let i = 0; i < n; i++) touchVertex(i, pt, nrm, r, target);
+  }
+  M.geo.attributes.color.needsUpdate = true;
+}
+function endStroke() {
+  if (P.stroke && P.stroke.size) { M.undo.push({ map: P.stroke }); if (M.undo.length > 30) M.undo.shift(); }
+  P.stroke = null; P.active = false; markProbe();
+}
+function undo() {
+  const u = M.undo.pop(); if (!u || !M.geo) return;
+  const col = M.geo.attributes.color;
+  if (u.full) { col.array.set(u.full); M.painted.set(u.painted); }
+  else for (const [vi, v] of u.map) { col.setXYZ(vi, v[0], v[1], v[2]); M.painted[vi] = v[3]; }
+  col.needsUpdate = true; markProbe();
+}
+function fillAll(erase) {
+  if (!M.geo) return;
+  const col = M.geo.attributes.color, c = erase ? M.base : P.color;
+  M.undo.push({ full: col.array.slice(), painted: M.painted.slice() });
+  for (let i = 0; i < col.count; i++) col.setXYZ(i, c.r, c.g, c.b);
+  M.painted.fill(erase ? 0 : 1); col.needsUpdate = true; markProbe();
+}
+function setBase(hexStr) {
+  M.base.set(hexStr);
+  if (!M.geo) return;
+  const col = M.geo.attributes.color;
+  for (let i = 0; i < col.count; i++) if (!M.painted[i]) col.setXYZ(i, M.base.r, M.base.g, M.base.b);
+  col.needsUpdate = true; markProbe();
+}
+
+const touches = new Set();
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch') touches.add(e.pointerId);
+  if (P.mode !== 'paint' || !M.mesh) return;
+  const ok = e.pointerType === 'mouse' ? e.button === 0 : touches.size === 1;
+  if (!ok) return;
+  const hit = pick(e); if (!hit) return;
+  P.active = true; P.stroke = new Map(); stamp(hit);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (P.mode !== 'paint' || !M.mesh) { brushViz.visible = false; return; }
+  const hit = pick(e);
+  if (hit && e.pointerType === 'mouse') { brushViz.visible = true; brushViz.position.copy(hit.point); brushViz.scale.setScalar(radius()); }
+  else brushViz.visible = false;
+  if (P.active) {
+    if (touches.size > 1) { endStroke(); return; }
+    for (const ev of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) { const h = pick(ev); if (h) stamp(h); }
+  }
+});
+const up = (e) => { touches.delete(e.pointerId); if (P.active) endStroke(); };
+canvas.addEventListener('pointerup', up);
+canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('pointerleave', () => { brushViz.visible = false; });
+
+function setMode(m) {
+  P.mode = m;
+  $('bOrbit').classList.toggle('on', m === 'orbit'); $('bPaint').classList.toggle('on', m === 'paint'); $('bProbe').classList.toggle('on', m === 'probe');
+  if (m === 'paint') {
+    controls.mouseButtons = { LEFT: -1, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+    controls.touches = { ONE: -1, TWO: THREE.TOUCH.DOLLY_ROTATE };
+  } else {
+    controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    brushViz.visible = false;
+  }
+  PROBE.pins.forEach((p) => (p.sprite.visible = m === 'probe'));
+}
+
+/* ================= Lumières : interface ================= */
+const PRESETS = {
+  'Zénithale': { amb: 8, L: [{ on: 1, type: 'dir', az: 0, el: 85, int: 1.3 }] },
+  '3/4 classique': { amb: 14, L: [{ on: 1, type: 'dir', az: 40, el: 45, int: 1, color: '#fff3e6' }, { on: 1, type: 'dir', az: -95, el: 20, int: 0.3, color: '#cfe0ff' }] },
+  'Contre-jour': { amb: 8, L: [{ on: 1, type: 'dir', az: 180, el: 35, int: 1.3 }, { on: 1, type: 'dir', az: 20, el: 40, int: 0.22, color: '#dfe8ff' }] },
+  'OSL': { amb: 5, L: [{ on: 1, type: 'point', az: 25, el: 25, int: 1.1, dist: 0.95, color: '#5fd0ff' }, { on: 1, type: 'dir', az: 0, el: 80, int: 0.2 }] },
+  'Trio': { amb: 10, L: [{ on: 1, type: 'dir', az: 45, el: 50, int: 1, color: '#fff1e0' }, { on: 1, type: 'dir', az: -60, el: 25, int: 0.4, color: '#cfe0ff' }, { on: 1, type: 'dir', az: 170, el: 30, int: 0.8, color: '#ffffff' }] }
+};
+function usePreset(name) {
+  const p = PRESETS[name];
+  L.forEach((l, i) => Object.assign(l, LIGHT_DEFAULT(), p.L[i] || {}, { on: !!p.L[i] }));
+  ambient.intensity = p.amb / 100 * 2.2; $('amb').value = p.amb; $('oAmb').textContent = p.amb;
+  buildLightsUI(); applyLights();
+}
+function buildLightsUI() {
+  $('lights').innerHTML = L.map((l, i) => `
+    <div class="light" data-i="${i}">
+      <h3><input type="checkbox" data-k="on" ${l.on ? 'checked' : ''}> Lumière ${i + 1}
+        <input type="color" data-k="color" value="${l.color}" style="margin-left:auto">
+        <select data-k="type"><option value="dir" ${l.type === 'dir' ? 'selected' : ''}>Directionnelle</option><option value="point" ${l.type === 'point' ? 'selected' : ''}>Ponctuelle (OSL)</option></select></h3>
+      <div class="row"><label>Intensité</label><input type="range" data-k="int" min="0" max="250" value="${Math.round(l.int * 100)}"></div>
+      <div class="row"><label>Azimut</label><input type="range" data-k="az" min="-180" max="180" value="${l.az}"></div>
+      <div class="row"><label>Hauteur</label><input type="range" data-k="el" min="-10" max="90" value="${l.el}"></div>
+      ${l.type === 'point' ? `<div class="row"><label>Distance</label><input type="range" data-k="dist" min="40" max="400" value="${Math.round(l.dist * 100)}"></div>` : ''}
+    </div>`).join('');
+}
+$('lights').addEventListener('input', (e) => {
+  const k = e.target.dataset.k, i = +e.target.closest('.light').dataset.i; if (!k) return;
+  const l = L[i], v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+  if (k === 'on') l.on = v; else if (k === 'color' || k === 'type') l[k] = v;
+  else l[k] = k === 'int' || k === 'dist' ? v / 100 : +v;
+  if (k === 'type') buildLightsUI();
+  applyLights();
+});
+
+/* ================= Interface générale ================= */
+function wire() {
+  document.querySelectorAll('#tabs button').forEach((b) => b.onclick = () => {
+    document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.id === 'p-' + b.dataset.t));
+  });
+  $('presets').innerHTML = Object.keys(PRESETS).map((k) => `<button data-p="${k}">${k}</button>`).join('');
+  $('presets').onclick = (e) => { if (e.target.dataset.p) usePreset(e.target.dataset.p); };
+  $('amb').oninput = (e) => { ambient.intensity = e.target.value / 100 * 2.2; $('oAmb').textContent = e.target.value; applyLights(); };
+  $('style').onchange = (e) => { styleKey = e.target.value; if (M.mesh) M.mesh.material = MATS[styleKey]; markProbe(); };
+  const setReal = (v, save) => { $('real').value = v; $('oReal').textContent = v; setRealism(v / 100); if (save) store.set('hp-real', v); markProbe(); };
+  $('real').oninput = (e) => setReal(+e.target.value, true);
+  $('realPre').onclick = (e) => { if (e.target.dataset.v) setReal(+e.target.dataset.v, true); };
+  const rs = store.get('hp-real'); setReal(typeof rs === 'number' ? rs : 25, false);
+  $('shadowBtn').onclick = (e) => { shadowsOn = !shadowsOn; e.target.classList.toggle('on', shadowsOn); e.target.textContent = shadowsOn ? 'Activées' : 'Désactivées'; ground.visible = shadowsOn; applyLights(); };
+  $('bOrbit').onclick = () => setMode('orbit');
+  $('bPaint').onclick = () => setMode('paint');
+  $('bProbe').onclick = () => setMode('probe');
+  $('bUndo').onclick = undo;
+  $('tPaint').onclick = () => { P.tool = 'paint'; $('tPaint').classList.add('on'); $('tErase').classList.remove('on'); };
+  $('tErase').onclick = () => { P.tool = 'erase'; $('tErase').classList.add('on'); $('tPaint').classList.remove('on'); };
+  $('bSize').oninput = (e) => { P.size = +e.target.value; $('oSize').textContent = e.target.value; };
+  $('bStr').oninput = (e) => { P.str = e.target.value / 100; $('oStr').textContent = e.target.value; };
+  $('oSize').textContent = P.size; $('oStr').textContent = Math.round(P.str * 100);
+  $('bFill').onclick = () => fillAll(false);
+  $('bClear').onclick = () => fillAll(true);
+  $('file').onchange = (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; };
+  $('bDemo').onclick = () => setModel(demoFigurine(), 'Figurine de démo', false);
+  $('bRotX').onclick = () => rotateModel('rotateX', Math.PI / 2);
+  $('bRotY').onclick = () => rotateModel('rotateY', Math.PI / 2);
+  $('bFlip').onclick = () => rotateModel('rotateX', Math.PI);
+  $('bFrame').onclick = frame;
+  $('baseCol').oninput = (e) => setBase(e.target.value);
+  $('bgCol').oninput = (e) => scene.background.set(e.target.value);
+  const stage = $('stage');
+  ['dragenter', 'dragover'].forEach((t) => stage.addEventListener(t, (e) => { e.preventDefault(); stage.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((t) => stage.addEventListener(t, (e) => { e.preventDefault(); stage.classList.remove('over'); }));
+  stage.addEventListener('drop', (e) => { const f = e.dataTransfer?.files?.[0]; if (f) loadFile(f); });
+}
+
+/* --- captures --- */
+const shots = [];
+function capture() {
+  const hide = [brushViz, ...PROBE.pins.map((p) => p.sprite), ...lightRig.flatMap((r) => [r.gz, r.line])], vis = hide.map((o) => o.visible);
+  hide.forEach((o) => (o.visible = false));
+  renderer.render(scene, camera);
+  const url = snapshot();
+  hide.forEach((o, i) => (o.visible = vis[i]));
+  shots.unshift(url); if (shots.length > 6) shots.pop();
+  $('shots').innerHTML = shots.map((s, i) => `<img src="${s}" data-i="${i}" alt="Capture ${i + 1}">`).join('');
+}
+$('bShot').onclick = capture;
+$('shots').onclick = (e) => {
+  const i = e.target.dataset.i; if (i == null) return;
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;z-index:9;background:rgba(20,22,25,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px';
+  box.innerHTML = `<img src="${shots[i]}" style="max-width:100%;max-height:82%;border-radius:10px"><div class="cap">Clic droit ou appui long pour enregistrer l'image. Touche pour fermer.</div>`;
+  box.onclick = () => box.remove();
+  document.body.appendChild(box);
+};
+
+/* --- glisser une lumière (clic ou toucher sur sa pastille) --- */
+const LD = { i: -1, id: null };
+const ndcOf = (e) => { const b = canvas.getBoundingClientRect(); return new THREE.Vector2(((e.clientX - b.left) / b.width) * 2 - 1, -((e.clientY - b.top) / b.height) * 2 + 1); };
+function lightAt(e) {
+  const b = canvas.getBoundingClientRect(); let best = -1, bd = e.pointerType === 'touch' ? 32 : 20;
+  L.forEach((l, i) => {
+    if (!l.on) return;
+    const v = lightRig[i].gz.position.clone().project(camera); if (v.z > 1) return;
+    const d = Math.hypot(e.clientX - ((v.x + 1) / 2 * b.width + b.left), e.clientY - ((1 - v.y) / 2 * b.height + b.top));
+    if (d < bd) { bd = d; best = i; }
+  });
+  return best;
+}
+function dragLight(e) {
+  const l = L[LD.i], R = l.type === 'dir' ? 3.2 : l.dist;
+  raycaster.setFromCamera(ndcOf(e), camera);
+  const o = raycaster.ray.origin.clone().sub(TARGET), d = raycaster.ray.direction, bq = o.dot(d), disc = bq * bq - (o.dot(o) - R * R);
+  let p;
+  if (disc >= 0) {
+    const s = Math.sqrt(disc), cur = lightRig[LD.i].gz.position.clone().sub(TARGET);
+    const p1 = o.clone().addScaledVector(d, -bq - s), p2 = o.clone().addScaledVector(d, -bq + s);
+    p = p1.distanceTo(cur) <= p2.distanceTo(cur) ? p1 : p2;
+  } else p = o.clone().addScaledVector(d, -bq);
+  p.normalize();
+  l.el = Math.round(clamp(Math.asin(clamp(p.y, -1, 1)) * 180 / Math.PI, -10, 90));
+  l.az = Math.round(Math.atan2(p.x, p.z) * 180 / Math.PI);
+  applyLights();
+  const box = $('lights').querySelector(`.light[data-i="${LD.i}"]`);
+  if (box) { box.querySelector('[data-k="az"]').value = l.az; box.querySelector('[data-k="el"]').value = l.el; }
+}
+$('stage').addEventListener('pointerdown', (e) => {
+  if (e.target !== canvas || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  const i = lightAt(e); if (i < 0) return;
+  LD.i = i; LD.id = e.pointerId; controls.enabled = false;
+  lightRig[i].gz.scale.setScalar(1.6); canvas.style.cursor = 'grabbing';
+  e.stopPropagation(); e.preventDefault();
+}, true);
+window.addEventListener('pointermove', (e) => {
+  if (LD.i >= 0) { if (e.pointerId === LD.id) dragLight(e); return; }
+  if (e.target === canvas && e.pointerType === 'mouse') canvas.style.cursor = lightAt(e) >= 0 ? 'grab' : '';
+});
+const endLD = (e) => {
+  if (LD.i < 0 || e.pointerId !== LD.id) return;
+  lightRig[LD.i].gz.scale.setScalar(1); LD.i = -1; controls.enabled = true; canvas.style.cursor = '';
+};
+window.addEventListener('pointerup', endLD); window.addEventListener('pointercancel', endLD);
+
+/* --- noir et blanc / valeurs --- */
+const BW = { on: false, lv: 0 };
+const tv = (n) => Array.from({ length: n }, (_, i) => (i / (n - 1)).toFixed(3)).join(' ');
+document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute" aria-hidden="true">' +
+  [3, 5, 7].map((n) => `<filter id="lv${n}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0"/>` +
+    `<feComponentTransfer><feFuncR type="discrete" tableValues="${tv(n)}"/><feFuncG type="discrete" tableValues="${tv(n)}"/><feFuncB type="discrete" tableValues="${tv(n)}"/></feComponentTransfer></filter>`).join('') + '</svg>');
+function applyBW() {
+  canvas.style.filter = !BW.on ? '' : BW.lv ? `url(#lv${BW.lv})` : 'grayscale(1)';
+  $('bBW').classList.toggle('on', BW.on);
+}
+$('bBW').onclick = () => { BW.on = !BW.on; applyBW(); };
+$('levels').onchange = (e) => { BW.lv = +e.target.value; BW.on = true; applyBW(); };
+function snapshot() {
+  if (!BW.on) return canvas.toDataURL('image/png');
+  const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height;
+  const x = c.getContext('2d'); x.drawImage(canvas, 0, 0);
+  const img = x.getImageData(0, 0, c.width, c.height), d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let g = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    if (BW.lv) g = Math.min(BW.lv - 1, Math.floor(g / 256 * BW.lv)) / (BW.lv - 1) * 255;
+    d[i] = d[i + 1] = d[i + 2] = g;
+  }
+  x.putImageData(img, 0, 0);
+  return c.toDataURL('image/png');
+}
+
+/* ================= Sonde : couleur peinte vs couleur éclairée ================= */
+const LETTERS = 'ABCDEFGH', MAXP = 8;
+const PROBE = { pins: [], age: 0, dirty: false, timer: 0, res: [], sg: {}, open: new Set() };
+const gl = renderer.getContext();
+const flatMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+const rgbHex = (c) => '#' + c.map((x) => Math.round(x).toString(16).padStart(2, '0')).join('');
+const lumOf = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+function pinSprite(letter) {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const tex = new THREE.CanvasTexture(c);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, sizeAttenuation: false }));
+  s.userData = { ctx: c.getContext('2d'), tex, letter };
+  s.center.set(0.5, 0.406); s.scale.setScalar(0.05); s.renderOrder = 11;
+  paintPin(s, null);
+  return s;
+}
+function paintPin(s, rgb) {
+  const x = s.userData.ctx; x.clearRect(0, 0, 64, 64);
+  x.font = '600 15px Fredoka, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.lineWidth = 4; x.strokeStyle = 'rgba(20,22,25,.9)'; x.strokeText(s.userData.letter, 32, 10);
+  x.fillStyle = '#F2EDE4'; x.fillText(s.userData.letter, 32, 10);
+  x.beginPath(); x.arc(32, 38, 12, 0, 7);
+  if (rgb) { x.fillStyle = rgbHex(rgb); x.fill(); }
+  x.lineWidth = 7; x.strokeStyle = 'rgba(20,22,25,.85)'; x.stroke();
+  x.lineWidth = 3.5; x.strokeStyle = '#fff'; x.stroke();
+  s.userData.tex.needsUpdate = true;
+}
+function addPin(hit) {
+  let slot = [...Array(MAXP).keys()].find((k) => !PROBE.pins.some((p) => p.slot === k));
+  if (slot === undefined) { // plein : on remplace la sonde la plus ancienne
+    const old = PROBE.pins.reduce((a, p) => (p.age < a.age ? p : a));
+    slot = old.slot; scene.remove(old.sprite); PROBE.pins = PROBE.pins.filter((p) => p !== old);
+  }
+  const sprite = pinSprite(LETTERS[slot]);
+  sprite.position.copy(hit.point); scene.add(sprite);
+  PROBE.pins.push({ slot, pos: hit.point.clone(), sprite, age: ++PROBE.age });
+  PROBE.pins.sort((a, b) => a.slot - b.slot);
+  PROBE.open = new Set([slot]);
+  PROBE.dirty = true;
+  document.querySelector('#tabs [data-t="sonde"]').click();
+}
+function removePin(slot) {
+  const p = PROBE.pins.find((q) => q.slot === slot); if (!p) return;
+  scene.remove(p.sprite); PROBE.pins = PROBE.pins.filter((q) => q !== p); PROBE.res = PROBE.res.filter((r) => r.slot !== slot);
+  drawProbe();
+}
+function clearPins() {
+  PROBE.pins.forEach((p) => scene.remove(p.sprite)); PROBE.pins = []; PROBE.res = []; PROBE.open = new Set();
+  if ($('probeOut')) $('probeOut').innerHTML = '';
+}
+function markProbe() {
+  if (!PROBE.pins.length && !GP.on) return;
+  clearTimeout(PROBE.timer); PROBE.timer = setTimeout(() => { PROBE.dirty = true; }, 200);
+}
+function readBuf() {
+  const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, buf = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  return { buf, w, h };
+}
+function renderPass(flat, bgHex) {
+  const hide = [brushViz, ...PROBE.pins.map((p) => p.sprite), ...lightRig.flatMap((r) => [r.gz, r.line])];
+  if (flat) hide.push(ground);
+  const vis = hide.map((o) => o.visible); hide.forEach((o) => (o.visible = false));
+  const oldBg = scene.background, oldMat = M.mesh.material;
+  if (flat) { M.mesh.material = flatMat; scene.background = new THREE.Color(bgHex); }
+  renderer.render(scene, camera);
+  const out = readBuf();
+  M.mesh.material = oldMat; scene.background = oldBg;
+  hide.forEach((o, i) => (o.visible = vis[i]));
+  return out;
+}
+const near = (a, b, t) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) <= t;
+const PCT = [['Lumière', 97], ['Clair', 80], ['Médian', 50], ['Sombre', 20], ['Ombre', 3]];
+
+function measureAll() {
+  if (!M.mesh || !PROBE.pins.length) { PROBE.res = []; drawProbe(); return; }
+  let bg = '#ff00ff', A = renderPass(true, bg);
+  const px = (B, p) => {
+    const v = p.pos.clone().project(camera);
+    const x = clamp(Math.round((v.x + 1) / 2 * B.w), 0, B.w - 1), y = clamp(Math.round((v.y + 1) / 2 * B.h), 0, B.h - 1);
+    return { x, y, v };
+  };
+  // le fond de la passe "à plat" ne doit pas ressembler à la couleur mesurée
+  const at = (B, x, y) => { const o = (y * B.w + x) * 4; return [B.buf[o], B.buf[o + 1], B.buf[o + 2]]; };
+  const targets = PROBE.pins.map((p) => { const q = px(A, p); return q.v.z < 1 ? at(A, q.x, q.y) : null; });
+  if (targets.some((t) => t && near(t, [255, 0, 255], 40))) { bg = '#00ff00'; A = renderPass(true, bg); }
+  const bgRGB = bg === '#ff00ff' ? [255, 0, 255] : [0, 255, 0];
+  const Lm = renderPass(false);
+  raycaster.firstHitOnly = true;
+  PROBE.res = PROBE.pins.map((p) => {
+    const q = px(A, p), cam = camera.position, d = p.pos.clone().sub(cam), dist = d.length();
+    raycaster.set(cam, d.normalize());
+    const h = raycaster.intersectObject(M.mesh, false)[0];
+    if (q.v.z >= 1 || !h || h.distance < dist - 0.06) return { slot: p.slot, hidden: true };
+    const paint = at(A, q.x, q.y);
+    if (near(paint, bgRGB, 30)) return { slot: p.slot, hidden: true };
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const x = clamp(q.x + dx, 0, Lm.w - 1), y = clamp(q.y + dy, 0, Lm.h - 1), c = at(Lm, x, y);
+      r += c[0]; g += c[1]; b += c[2]; n++;
+    }
+    const lit = [r / n, g / n, b / n];
+    // zone : tous les pixels visibles de la même couleur peinte
+    const hist = new Float64Array(256 * 4); let match = 0, model = 0;
+    for (let i = 0; i < A.buf.length; i += 4) {
+      const c0 = A.buf[i], c1 = A.buf[i + 1], c2 = A.buf[i + 2];
+      if (Math.abs(c0 - bgRGB[0]) + Math.abs(c1 - bgRGB[1]) + Math.abs(c2 - bgRGB[2]) <= 30) continue;
+      model++;
+      if (Math.abs(c0 - paint[0]) + Math.abs(c1 - paint[1]) + Math.abs(c2 - paint[2]) > 9) continue;
+      const l0 = Lm.buf[i], l1 = Lm.buf[i + 1], l2 = Lm.buf[i + 2], bin = Math.min(255, Math.round(0.2126 * l0 + 0.7152 * l1 + 0.0722 * l2)) * 4;
+      hist[bin] += l0; hist[bin + 1] += l1; hist[bin + 2] += l2; hist[bin + 3]++; match++;
+    }
+    const ramp = [];
+    if (match) for (const [label, pc] of PCT) {
+      const goal = match * pc / 100; let acc = 0;
+      for (let bn = 0; bn < 256; bn++) {
+        const cnt = hist[bn * 4 + 3]; if (!cnt) continue; acc += cnt;
+        if (acc >= goal) { const c = [hist[bn * 4] / cnt, hist[bn * 4 + 1] / cnt, hist[bn * 4 + 2] / cnt]; if (!ramp.some((e) => near(e.c, c, 8))) ramp.push({ label, c }); break; }
+      }
+    }
+    return { slot: p.slot, paint, lit, share: match / Math.max(1, model), ramp };
+  });
+  drawProbe();
+}
+function chip(c, label) {
+  const h = rgbHex(c);
+  return `<div class="chip" style="background:${h};color:${lumOf(c) > 150 ? '#222' : '#fff'}">${label ? label + '<br>' : ''}<b>${h.toUpperCase()}</b></div>`;
+}
+function sChip(s) {
+  const h = rgbHex(s.rgb);
+  const cap = s.name === 'Base' ? 'référence' : `${s.dh > 0 ? '+' : ''}${s.dh}°<br>sat ${s.dC > 0 ? '+' : ''}${s.dC} %`;
+  return `<div style="flex:1;min-width:0"><div class="chip" style="height:54px;background:${h};color:${lumOf(s.rgb) > 150 ? '#222' : '#fff'}">${s.name}<br><b>${h.toUpperCase()}</b></div><div class="cap2">${cap}</div></div>`;
+}
+function drawProbe() {
+  const out = $('probeOut'); if (!out) return;
+  const R = PROBE.res, key = $('rampStyle') ? $('rampStyle').value : 'classique';
+  PROBE.pins.forEach((p) => { const r = R.find((q) => q.slot === p.slot); paintPin(p.sprite, r && !r.hidden ? r.lit : null); });
+  PROBE.sg = {};
+  const rm = (r) => `<button data-rm="${r.slot}" style="margin-left:auto;min-height:26px;padding:2px 8px;font-size:12px">Retirer</button>`;
+  const dot = (c) => `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${rgbHex(c)};vertical-align:middle"></span>`;
+  const open = (r) => (PROBE.open.has(r.slot) ? 'open' : '');
+  const sum = (r, sub) => `<summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px"><h3 style="margin:0">Point ${LETTERS[r.slot]}</h3>${sub}${rm(r)}</summary>`;
+  out.innerHTML = R.map((r) => {
+    if (r.hidden) return `<details class="pin" data-s="${r.slot}" ${open(r)}>${sum(r, '<small>masqué</small>')}<div class="cap" style="margin-top:8px">Point masqué : tourne le modèle pour le revoir.</div></details>`;
+    const sg = suggestRamp(r.ramp, r.paint, key, { n: GP.n, anchor: GP.anchor });
+    PROBE.sg[r.slot] = { measured: r.ramp.map((e) => e.c).reverse(), suggested: sg.steps.map((s) => s.rgb), names: sg.steps.map((s) => s.name), base: sg.base };
+    return `<details class="pin" data-s="${r.slot}" ${open(r)}>${sum(r, `<span style="font-size:12px;color:var(--dim)">${dot(r.paint)} → ${dot(r.lit)} ${Math.round(lumOf(r.lit) / 2.55)} %</span>`)}
+      <div class="pair" style="margin-top:10px"><div><p class="lbl">Peinte</p>${chip(r.paint)}</div><span class="arrow">→</span><div><p class="lbl">Éclairée ici</p>${chip(r.lit)}</div></div>
+      <small>Valeur ${Math.round(lumOf(r.paint) / 2.55)} % → ${Math.round(lumOf(r.lit) / 2.55)} %</small>
+      <p class="lbl" style="margin-top:10px">Rampe mesurée sur toute la zone (${Math.round(r.share * 100)} % du modèle visible)</p>
+      <div class="ramp">${r.ramp.map((e) => chip(e.c, e.label)).join('')}</div>
+      <p class="lbl" style="margin-top:12px">Rampe suggérée · ${sg.steps.length} couleur${sg.steps.length > 1 ? 's' : ''} · ${RAMP_STYLES[key].name} (nombre réglable dans l'onglet Rampes)</p>
+      <div class="sug">${sg.steps.map(sChip).join('')}</div>
+      <ul class="notes">${sg.notes.map((n) => `<li>${n}</li>`).join('')}</ul>
+      <div class="grid" style="margin-top:10px"><button data-send="${r.slot}:sug" class="pri">Suggérée → Couleurs</button><button data-send="${r.slot}:mes">Mesurée → Couleurs</button><button data-copy="${r.slot}">Copier</button></div></details>`;
+  }).join('');
+  const ok = R.filter((r) => !r.hidden);
+  if (ok.length === 2) {
+    const d = Math.round((lumOf(ok[0].lit) - lumOf(ok[1].lit)) / 2.55), a = LETTERS[ok[0].slot], b = LETTERS[ok[1].slot];
+    out.insertAdjacentHTML('beforeend', `<div class="cap">Écart de valeur : ${a} est ${d >= 0 ? 'plus clair' : 'plus sombre'} que ${b} de ${Math.abs(d)} points.</div>`);
+    if (near(ok[0].paint, ok[1].paint, 9)) out.insertAdjacentHTML('beforeend', `<div class="cap" style="margin-top:6px">${a} et ${b} sont sur la même zone de couleur. Pose un point sur une autre zone pour comparer le contraste entre deux zones.</div>`);
+    else out.insertAdjacentHTML('beforeend', `<ul class="notes">${zoneContrast(PROBE.sg[ok[0].slot].base, PROBE.sg[ok[1].slot].base).map((n) => `<li>${n}</li>`).join('')}</ul>`);
+  } else if (ok.length > 2) {
+    const sorted = [...ok].sort((x, y) => lumOf(y.lit) - lumOf(x.lit)), risky = [];
+    for (let i = 0; i < ok.length; i++) for (let j = i + 1; j < ok.length; j++) {
+      if (near(ok[i].paint, ok[j].paint, 9)) continue;
+      const dL = Math.abs(rgb2lch(PROBE.sg[ok[i].slot].base).L - rgb2lch(PROBE.sg[ok[j].slot].base).L);
+      if (dL < 0.12) risky.push(`${LETTERS[ok[i].slot]} et ${LETTERS[ok[j].slot]} : zones différentes mais valeurs proches (${Math.round(dL * 100)} points), elles se fondront en noir et blanc.`);
+    }
+    out.insertAdjacentHTML('beforeend', `<p class="lbl" style="margin-top:12px">Sondes de la plus claire à la plus sombre (valeur éclairée)</p>
+      <div class="ramp">${sorted.map((r) => `<div class="chip" style="background:${rgbHex(r.lit)};color:${lumOf(r.lit) > 150 ? '#222' : '#fff'}"><b>${LETTERS[r.slot]}</b>${Math.round(lumOf(r.lit) / 2.55)} %</div>`).join('')}</div>
+      ${risky.length ? `<ul class="notes">${risky.slice(0, 4).map((t) => `<li>${t}</li>`).join('')}</ul>` : ''}`);
+  }
+  if (R.length) out.insertAdjacentHTML('beforeend', `<div class="cap" style="margin-top:8px">${PROBE.pins.length} / ${MAXP} sondes. Au-delà, la plus ancienne est remplacée.</div>`);
+  else out.innerHTML = '<div class="cap">Aucune sonde posée.</div>';
+}
+function sendToColors(list, ratios) {
+  if (!list || !list.length) return;
+  C.rule = 'free'; C.colors = list.map(rgb2hsv);
+  const n = C.colors.length;
+  C.ratios = ratios ? ratios.slice() : n === 5 ? [10, 20, 40, 20, 10] : n === 4 ? [15, 35, 35, 15] : n === 3 ? [20, 60, 20] : Array(n).fill(100 / n);
+  C.sel = Math.floor(n / 2); refreshColors(); store.set('hp-colors', C);
+  document.querySelector('#tabs [data-t="couleurs"]').click();
+}
+async function copyRamp(slot, btn) {
+  const g = PROBE.sg[slot]; if (!g) return;
+  const txt = g.suggested.map((c, i) => `${g.names[i]} ${rgbHex(c).toUpperCase()}`).join('\n'), old = btn.textContent;
+  let ok = true; try { await navigator.clipboard.writeText(txt); } catch { ok = false; }
+  btn.textContent = ok ? 'Copié' : 'Copie impossible'; setTimeout(() => { btn.textContent = old; }, 1600);
+}
+$('bPinsClear').onclick = clearPins;
+$('probeOut').addEventListener('toggle', (e) => {
+  const s = e.target.dataset && e.target.dataset.s; if (s == null) return;
+  if (e.target.open) PROBE.open.add(+s); else PROBE.open.delete(+s);
+}, true);
+$('probeOut').onclick = (e) => {
+  const d = e.target.dataset;
+  if (d.rm != null) { e.preventDefault(); removePin(+d.rm); }
+  else if (d.send) { const [slot, kind] = d.send.split(':'), g = PROBE.sg[slot]; if (g) sendToColors(kind === 'sug' ? g.suggested : g.measured); }
+  else if (d.copy != null) copyRamp(d.copy, e.target);
+};
+$('rampStyle').onchange = drawProbe;
+let tap = null;
+canvas.addEventListener('pointerdown', (e) => { tap = P.mode === 'probe' && e.pointerType !== 'touch' ? { x: e.clientX, y: e.clientY, t: performance.now() } : (P.mode === 'probe' && touches.size === 1 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null); });
+canvas.addEventListener('pointerup', (e) => {
+  if (!tap || P.mode !== 'probe') return;
+  const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y), dt = performance.now() - tap.t; tap = null;
+  if (moved > 6 || dt > 500) return;
+  const hit = pick(e); if (hit) addPin(hit);
+});
+drawProbe();
+
+
+/* ================= Palette globale : toutes les zones peintes, rampes en 2D ================= */
+const GP = Object.assign({ on: false, zones: [], layout: null, cols: [], n: 5, total: 0, anchor: 'paint', zoneN: {} }, (() => { const s = store.get('hp-ramps'); return s ? { n: s.n, total: s.total, anchor: s.anchor } : {}; })());
+const saveRamps = () => store.set('hp-ramps', { n: GP.n, total: GP.total, anchor: GP.anchor });
+const zKey = (z) => z.id || rgbHex(z.paint);
+GP.groups = [];
+function rampFromHist(hist, match, n) {
+  const ramp = [];
+  if (!match) return ramp;
+  const pcs = n ? (n === 1 ? [['Base', 50]] : Array.from({ length: n }, (_, i) => [RAMP_NAMES_N[n][n - 1 - i], 97 - 94 * i / (n - 1)])) : PCT;
+  for (const [label, pc] of pcs) {
+    const goal = match * pc / 100; let acc = 0;
+    for (let bn = 0; bn < 256; bn++) {
+      const cnt = hist[bn * 4 + 3]; if (!cnt) continue; acc += cnt;
+      if (acc >= goal) { const c = [hist[bn * 4] / cnt, hist[bn * 4 + 1] / cnt, hist[bn * 4 + 2] / cnt]; if (n || !ramp.some((e) => near(e.c, c, 8))) ramp.push({ label, c }); break; }
+    }
+  }
+  return ramp;
+}
+function analyzeGlobal() {
+  if (!M.mesh) return;
+  const A1 = renderPass(true, '#ff00ff'), A2 = renderPass(true, '#00ff00'), Lm = renderPass(false);
+  const n = A1.w * A1.h, cnt = new Float64Array(32768), sr = new Float64Array(32768), sg = new Float64Array(32768), sb = new Float64Array(32768);
+  const isModel = new Uint8Array(n); let model = 0;
+  for (let p = 0, i = 0; p < n; p++, i += 4) {
+    const r = A1.buf[i], g = A1.buf[i + 1], b = A1.buf[i + 2];
+    if (Math.abs(r - A2.buf[i]) + Math.abs(g - A2.buf[i + 1]) + Math.abs(b - A2.buf[i + 2]) > 6) continue; // fond : change avec la couleur de fond
+    isModel[p] = 1; model++;
+    const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+    cnt[k]++; sr[k] += r; sg[k] += g; sb[k] += b;
+  }
+  GP.on = true;
+  if (!model) { GP.zones = []; drawGlobal(); return; }
+  const keys = []; for (let k = 0; k < 32768; k++) if (cnt[k]) keys.push(k);
+  keys.sort((a, b) => cnt[b] - cnt[a]);
+  let zones = [];
+  for (const k of keys) {
+    const c = [sr[k] / cnt[k], sg[k] / cnt[k], sb[k] / cnt[k]];
+    if (zones.some((z) => near(z.paint, c, 24))) continue;
+    if (cnt[k] >= model * 0.005 && zones.length < 8) zones.push({ paint: c.map(Math.round), hist: new Float64Array(1024), match: 0 });
+  }
+  for (let p = 0, i = 0; p < n; p++, i += 4) {
+    if (!isModel[p]) continue;
+    const r = A1.buf[i], g = A1.buf[i + 1], b = A1.buf[i + 2];
+    let best = null, bd = 25;
+    for (const z of zones) { const d = Math.abs(r - z.paint[0]) + Math.abs(g - z.paint[1]) + Math.abs(b - z.paint[2]); if (d < bd) { bd = d; best = z; } }
+    if (!best) continue;
+    const l0 = Lm.buf[i], l1 = Lm.buf[i + 1], l2 = Lm.buf[i + 2], bin = Math.min(255, Math.round(0.2126 * l0 + 0.7152 * l1 + 0.0722 * l2)) * 4;
+    best.hist[bin] += l0; best.hist[bin + 1] += l1; best.hist[bin + 2] += l2; best.hist[bin + 3]++; best.match++;
+  }
+  zones = zones.filter((z) => z.match > 0);
+  zones.forEach((z) => { z.share = z.match / model; z.ramp = rampFromHist(z.hist, z.match); z.id = rgbHex(z.paint); z.keys = [z.id]; });
+  for (const g of GP.groups) { // fusions décidées par l'utilisateur, réappliquées à chaque analyse
+    const mem = zones.filter((z) => g.includes(z.id));
+    if (mem.length > 1) { const m = combineZones(mem); zones = zones.filter((z) => !mem.includes(z)); zones.push(m); }
+  }
+  zones.sort((a, b) => zoneOrder(a) - zoneOrder(b));
+  GP.zones = zones; drawGlobal();
+}
+
+const GU = 44, GR = 19;
+function zoneCounts() { // nombre de couleurs de chaque rampe : réglage manuel > budget total > valeur par défaut
+  const counts = GP.zones.map((z) => GP.zoneN[zKey(z)] ?? null);
+  if (!GP.total) return counts.map((c) => c ?? GP.n);
+  const free = counts.map((c, i) => (c == null ? i : -1)).filter((i) => i >= 0);
+  let budget = GP.total - counts.reduce((a, c) => a + (c || 0), 0);
+  const floor = budget >= free.length * 2 ? 2 : 1; // 2 couleurs minimum par rampe quand le budget le permet
+  free.forEach((i) => { counts[i] = floor; }); budget -= free.length * floor;
+  while (budget > 0) {
+    let best = -1, bs = -1;
+    free.forEach((i) => { if (counts[i] < 7) { const sc = GP.zones[i].share / counts[i]; if (sc > bs) { bs = sc; best = i; } } });
+    if (best < 0) break; counts[best]++; budget--;
+  }
+  return counts;
+}
+function buildPalette() {
+  const st = $('gStyle').value, src = $('gSrc').value, B = +$('gBridge').value, counts = zoneCounts();
+  const cols = GP.zones.map((z, j) => src === 'mes'
+    ? rampFromHist(z.hist, z.match, counts[j]).map((e) => ({ rgb: e.c.map(Math.round), name: e.label }))
+    : suggestRamp(z.ramp, z.paint, st, { n: counts[j], anchor: GP.anchor }).steps.map((s) => ({ rgb: s.rgb, name: s.name })).reverse()); // haut = lumière
+  const baseRow = cols.map((c) => { const i = c.findIndex((e) => e.name === 'Base'); return i >= 0 ? i : Math.floor((c.length - 1) / 2); });
+  const circles = [], gap = (B + 1) * GU, rows = Math.max(1, ...cols.map((c) => c.length));
+  cols.forEach((c, j) => c.forEach((e, i) => circles.push({ x: j * gap + GU / 2, y: i * GU + GU / 2, rgb: e.rgb, type: 'ramp', z: j, name: e.name })));
+  for (let j = 0; j + 1 < cols.length; j++) for (let k = 1; k <= B; k++) {
+    const r = Math.min(baseRow[j], baseRow[j + 1]);
+    circles.push({ x: j * gap + GU / 2 + k * GU, y: r * GU + GU / 2, type: 'bridge', z: j, name: 'Passerelle',
+      rgb: mixRgb(cols[j][baseRow[j]].rgb, cols[j + 1][baseRow[j + 1]].rgb, k / (B + 1)) });
+  }
+  return { circles, cols, counts, W: Math.max(GU, (cols.length - 1) * gap + GU), H: rows * GU, gap };
+}
+function paletteSVG(L) {
+  const dots = L.circles.map((c, i) => `<circle data-i="${i}" cx="${c.x}" cy="${c.y}" r="${GR}" fill="${rgbHex(c.rgb)}" stroke="rgba(255,255,255,.2)"/>`).join('');
+  const lab = L.cols.map((_, j) => `<text x="${j * L.gap + GU / 2}" y="${L.H + 16}" fill="#a9a69f" font-size="12" text-anchor="middle" font-family="Work Sans, sans-serif">${j + 1}</text>`).join('');
+  return `<svg width="${L.W}" height="${L.H + 22}" viewBox="0 0 ${L.W} ${L.H + 22}" style="display:block">${dots}${lab}</svg>`;
+}
+function paletteImage(L) {
+  const s = 2, pad = 24, c = document.createElement('canvas');
+  c.width = (L.W + pad * 2) * s; c.height = (L.H + pad * 2 + 22) * s;
+  const x = c.getContext('2d'); x.scale(s, s);
+  x.fillStyle = '#F2EDE4'; x.fillRect(0, 0, c.width, c.height);
+  L.circles.forEach((d) => { x.beginPath(); x.arc(d.x + pad, d.y + pad, GR, 0, 7); x.fillStyle = rgbHex(d.rgb); x.fill(); });
+  x.fillStyle = '#6b6860'; x.font = '12px Work Sans, sans-serif'; x.textAlign = 'center';
+  L.cols.forEach((_, j) => x.fillText(String(j + 1), j * L.gap + GU / 2 + pad, L.H + pad + 18));
+  return c.toDataURL('image/png');
+}
+const zoneOrder = (z) => { const l = rgb2lch(z.paint); return l.C < 0.02 ? 1000 + l.L * 100 : (l.h + 340) % 360; };
+function combineZones(list) {
+  const keys = [...new Set(list.flatMap((z) => z.keys || [zKey(z)]))], hist = new Float64Array(1024);
+  let match = 0, share = 0;
+  list.forEach((z) => { for (let k = 0; k < 1024; k++) hist[k] += z.hist[k]; match += z.match; share += z.share; });
+  const paint = [0, 1, 2].map((k) => Math.round(list.reduce((a, z) => a + z.paint[k] * z.share, 0) / share));
+  return { id: keys.slice().sort().join('+'), keys, paint, hist, match, share, ramp: rampFromHist(hist, match) };
+}
+function mergeZones(i, j) {
+  const a = GP.zones[i], b = GP.zones[j], m = combineZones([a, b]);
+  GP.zones = GP.zones.filter((z) => z !== a && z !== b); GP.zones.push(m);
+  GP.zones.sort((x, y) => zoneOrder(x) - zoneOrder(y));
+  GP.groups = GP.groups.filter((g) => !g.some((k) => m.keys.includes(k))); GP.groups.push(m.keys);
+  drawGlobal();
+}
+/* ressemblance entre rampes (écart OKLab moyen, rampes ré-échantillonnées sur 5 points) */
+const labOf = (c) => { const l = rgb2lch(c), r = Math.PI / 180; return [l.L, l.C * Math.cos(l.h * r), l.C * Math.sin(l.h * r)]; };
+function resampleRamp(col, m) {
+  const labs = col.map((e) => labOf(e.rgb));
+  if (labs.length === 1) return Array(m).fill(labs[0]);
+  return Array.from({ length: m }, (_, i) => { const t = i / (m - 1) * (labs.length - 1), a = Math.floor(t), b = Math.min(labs.length - 1, a + 1), f = t - a; return labs[a].map((v, k) => v + (labs[b][k] - v) * f); });
+}
+function rampDist(A, B) {
+  const a = resampleRamp(A, 5), b = resampleRamp(B, 5);
+  return 100 * a.reduce((s, p, i) => s + Math.hypot(p[0] - b[i][0], p[1] - b[i][1], p[2] - b[i][2]), 0) / a.length;
+}
+const baseOfCol = (col) => { const i = col.findIndex((e) => e.name === 'Base'); return col[i >= 0 ? i : Math.floor((col.length - 1) / 2)].rgb; };
+function drawSimilar() {
+  const el = $('gSim'); if (!el) return;
+  if (!GP.layout) { el.innerHTML = ''; return; }
+  const cols = GP.layout.cols, pairs = [];
+  for (let i = 0; i < cols.length; i++) for (let j = i + 1; j < cols.length; j++) { const d = rampDist(cols[i], cols[j]); if (d < 12) pairs.push({ i, j, d }); }
+  pairs.sort((a, b) => a.d - b.d);
+  const tinted = L.some((l) => l.on && rgb2hsv(hexRgb('#' + new THREE.Color(l.color).getHexString())).s > 0.2);
+  let html = pairs.map(({ i, j, d }) => {
+    const A = rgb2lch(baseOfCol(cols[i])), B = rgb2lch(baseOfCol(cols[j])), dh = hArc(A.h, B.h), dL = Math.abs(A.L - B.L);
+    const small = GP.zones[i].share < GP.zones[j].share ? i : j, hs = rgb2hsv(baseOfCol(cols[small])).h, tips = [];
+    if (A.C > 0.03 && B.C > 0.03 && dh < 30) tips.push(`Teintes à ${Math.round(dh)}° l'une de l'autre : écarte la zone ${small + 1} d'au moins 30°, par exemple vers ${hueName(hs + 35)} ou ${hueName(hs - 35)}.`);
+    if (dL < 0.1) tips.push(`Valeurs proches (${Math.round(dL * 100)} points) : éclaircis ou assombris l'une des deux d'au moins 12 points.`);
+    if (tinted && (GP.anchor === 'lit' || $('gSrc').value === 'mes')) tips.push('Tes lumières colorées tirent toutes les rampes dans la même direction : passe « Rampe basée sur » en Couleur peinte, ou rends les lumières plus neutres.');
+    tips.push('Si ces deux zones doivent avoir la même couleur, fusionne-les pour n\'avoir qu\'une rampe.');
+    return `<div class="pin" style="padding:8px 10px"><b style="font-size:13px">Rampes ${i + 1} et ${j + 1} : ${d < 7 ? 'très proches' : 'proches'}</b> <small>(écart ${Math.round(d)})</small>
+      <ul class="notes" style="margin:6px 0 8px">${tips.map((t) => `<li>${t}</li>`).join('')}</ul>
+      <div class="grid" style="margin:0"><button data-merge="${i},${j}">Fusionner ${i + 1} + ${j + 1}</button></div></div>`;
+  }).join('');
+  if (GP.groups.length) html += '<div class="grid"><button id="gUnmerge">Annuler les fusions</button></div>';
+  el.innerHTML = html;
+}
+function drawZoneList() {
+  const el = $('gZones'); if (!el) return;
+  if (!GP.zones.length || !GP.layout) { el.innerHTML = ''; return; }
+  const total = GP.layout.counts.reduce((a, c) => a + c, 0);
+  el.innerHTML = `<p class="lbl" style="margin:12px 0 4px">Longueur de chaque rampe · ${total} couleur${total > 1 ? 's' : ''} au total (hors passerelles)</p>` + GP.zones.map((z, j) => {
+    const hsv = rgb2hsv(z.paint), nm = hsv.s >= 0.15 && hsv.v >= 0.12 ? hueName(hsv.h) : neutralName(hsv.v), pinned = GP.zoneN[zKey(z)] != null, n = GP.layout.counts[j];
+    return `<div class="row" style="margin:5px 0"><span style="width:16px;height:16px;border-radius:50%;background:${rgbHex(z.paint)};flex:none"></span>
+      <span style="flex:1;min-width:0;font-size:13px">${j + 1} · ${nm} <small>${Math.round(z.share * 100)} %</small></span>
+      <button data-zn="${j}" data-d="-1" style="padding:2px 10px">−</button><output style="width:22px;text-align:center;color:${pinned ? 'var(--coral)' : 'var(--paper)'}">${n}</output><button data-zn="${j}" data-d="1" style="padding:2px 10px">+</button>
+      ${pinned ? `<button data-zn="${j}" data-d="0" title="Revenir au réglage automatique" style="padding:2px 8px">auto</button>` : ''}</div>`;
+  }).join('');
+}
+function drawGlobal() {
+  const map = $('gMap'); if (!map) return;
+  syncRampUI();
+  if (!GP.zones.length) { GP.layout = null; map.innerHTML = '<div class="cap">Aucune zone détectée : peins quelques couleurs sur le modèle, puis relance l\'analyse.</div>'; $('gNotes').innerHTML = ''; drawZoneList(); drawSimilar(); renderSchema(); return; }
+  const L = GP.layout = buildPalette();
+  map.innerHTML = paletteSVG(L);
+  const zs = GP.zones.map((z, j) => ({ share: z.share, base: z.paint, cols: L.cols[j].map((e) => e.rgb) }));
+  $('gNotes').innerHTML = globalNotes(zs).map((t) => `<li>${t}</li>`).join('');
+  $('gRead').textContent = 'Touche un cercle pour lire sa couleur.';
+  drawZoneList(); drawSimilar(); renderSchema();
+}
+function syncRampUI() {
+  document.querySelectorAll('#gN button').forEach((b) => b.classList.toggle('on', +b.dataset.n === GP.n && !GP.total));
+  if ($('gTotal')) $('gTotal').value = String(GP.total);
+  if ($('gAnchor')) $('gAnchor').value = GP.anchor;
+}
+function showImage(url, hint) {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;z-index:9;background:rgba(20,22,25,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px';
+  box.innerHTML = `<img src="${url}" style="max-width:100%;max-height:82%;border-radius:10px;background:#fff"><div class="cap">${hint}</div>`;
+  box.onclick = () => box.remove();
+  document.body.appendChild(box);
+}
+$('gAnalyse').onclick = () => { try { analyzeGlobal(); } catch (err) { console.warn(err); $('gRead').textContent = 'Analyse impossible : ' + (err.message || err); } };
+['gSrc', 'gStyle', 'gBridge'].forEach((id) => { $(id).onchange = drawGlobal; });
+$('gN').onclick = (e) => { const n = +e.target.dataset.n; if (!n) return; GP.n = n; GP.total = 0; saveRamps(); drawGlobal(); drawProbe(); };
+$('gTotal').onchange = (e) => { GP.total = +e.target.value; saveRamps(); drawGlobal(); };
+$('gAnchor').onchange = (e) => { GP.anchor = e.target.value; saveRamps(); drawGlobal(); drawProbe(); };
+$('gSim').onclick = (e) => {
+  const m = e.target.dataset && e.target.dataset.merge;
+  if (m) { const [i, j] = m.split(',').map(Number); mergeZones(i, j); }
+  else if (e.target.id === 'gUnmerge') { GP.groups = []; try { analyzeGlobal(); } catch (err) { console.warn(err); } }
+};
+$('gZones').onclick = (e) => {
+  const j = e.target.dataset && e.target.dataset.zn; if (j == null) return;
+  const z = GP.zones[+j], k = zKey(z), d = +e.target.dataset.d;
+  if (d === 0) delete GP.zoneN[k]; else GP.zoneN[k] = Math.min(7, Math.max(1, GP.layout.counts[+j] + d));
+  drawGlobal();
+};
+$('gMap').onclick = (e) => {
+  const i = e.target.dataset && e.target.dataset.i; if (i == null || !GP.layout) return;
+  const c = GP.layout.circles[+i], h = rgbHex(c.rgb).toUpperCase();
+  $('gRead').textContent = c.type === 'bridge' ? `Passerelle entre les zones ${c.z + 1} et ${c.z + 2} · ${h}` : `Zone ${c.z + 1} · ${c.name} · ${h} · valeur ${Math.round(lumOf(c.rgb) / 2.55)} %`;
+};
+$('gImg').onclick = () => { if (GP.layout) showImage(paletteImage(GP.layout), 'Clic droit ou appui long pour enregistrer l\'image. Touche pour fermer.'); };
+$('gCopy').onclick = async (e) => {
+  if (!GP.layout) return;
+  const txt = GP.layout.cols.map((c, j) => `Zone ${j + 1} : ` + c.map((d) => rgbHex(d.rgb).toUpperCase()).join(' ')).join('\n'), old = e.target.textContent;
+  let ok = true; try { await navigator.clipboard.writeText(txt); } catch { ok = false; }
+  e.target.textContent = ok ? 'Copié' : 'Copie impossible'; setTimeout(() => { e.target.textContent = old; }, 1600);
+};
+$('gSend').onclick = () => {
+  if (!GP.zones.length) return;
+  const tot = GP.zones.reduce((a, z) => a + z.share, 0) || 1;
+  sendToColors(GP.zones.map((z) => z.paint), GP.zones.map((z) => z.share / tot * 100));
+};
+
+
+/* --- type de schéma mesuré sur la figurine (onglet Couleurs) --- */
+function drawMeasuredRing(items) {
+  const cv = $('mring'); if (!cv) return;
+  const x = cv.getContext('2d'); x.clearRect(0, 0, 300, 300);
+  let a0 = -Math.PI / 2;
+  items.forEach((z) => {
+    const a1 = a0 + z.p * Math.PI * 2;
+    x.beginPath(); x.arc(150, 150, 105, a0, a1); x.strokeStyle = rgbHex(z.rgb); x.lineWidth = 52; x.stroke();
+    if (z.p >= 0.06) {
+      const m = (a0 + a1) / 2; x.fillStyle = lumOf(z.rgb) > 150 ? '#222' : '#fff'; x.font = '600 28px Fredoka, sans-serif';
+      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(Math.round(z.p * 100), 150 + Math.cos(m) * 105, 150 + Math.sin(m) * 105);
+    }
+    a0 = a1;
+  });
+}
+function renderSchema() {
+  const el = $('schema'); if (!el) return;
+  if (!GP.zones.length) { el.innerHTML = '<div class="cap" style="margin-top:8px">Aucune mesure pour l\'instant.</div>'; return; }
+  const S = classifyScheme(GP.zones.map((z) => ({ rgb: z.paint, share: z.share })));
+  const dot = (rgb) => `<span style="width:14px;height:14px;border-radius:50%;background:${rgbHex(rgb)};flex:none"></span>`;
+  const lines = S.clusters.map((c) => `<div class="row" style="margin:4px 0">${dot(c.rgb)}<span style="flex:1;font-size:13px"><b>${c.role}</b> ${c.name}</span><span class="cap">${Math.round(c.p * 100)} %</span></div>`).join('');
+  const neut = S.neutral > 0.005 ? `<div class="row" style="margin:4px 0"><span style="width:14px;height:14px;border-radius:50%;border:1px dashed var(--dim);flex:none"></span><span style="flex:1;font-size:13px">Neutres <small>(${S.neutralNames.join(', ')})</small></span><span class="cap">${Math.round(S.neutral * 100)} %</span></div>` : '';
+  el.innerHTML = `<div class="pin"><h3 style="font-size:17px">${S.name}</h3><div class="cap" style="margin-bottom:8px">${S.headline}</div>
+    <div class="row" style="align-items:flex-start;gap:12px"><canvas id="mring" width="300" height="300" style="width:130px;height:130px;flex:none"></canvas><div style="flex:1;min-width:0">${lines}${neut}</div></div>
+    <ul class="notes">${S.notes.map((n) => `<li>${n}</li>`).join('')}</ul></div>`;
+  drawMeasuredRing(S.items);
+}
+$('sRelever').onclick = () => { try { analyzeGlobal(); } catch (err) { console.warn(err); $('schema').innerHTML = `<div class="cap">Analyse impossible : ${err.message || err}</div>`; } };
+$('sUse').onclick = () => $('gSend').click();
+renderSchema();
+
+/* --- boucle, taille, démarrage --- */
+function resize() {
+  const s = $('stage'), w = s.clientWidth, h = s.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe($('stage'));
+(function loop() {
+  controls.update(); renderer.render(scene, camera);
+  if (PROBE.dirty) { PROBE.dirty = false; try { measureAll(); if (GP.on) analyzeGlobal(); } catch (err) { console.warn('sonde', err); } }
+  requestAnimationFrame(loop);
+})();
+
+C.onChange = (h) => { P.color.set(h); };
+wire();
+refreshColors();
+const sv = store.get('hp-lights');
+if (sv && sv.L?.length === 3) {
+  sv.L.forEach((l, i) => Object.assign(L[i], l));
+  ambient.intensity = sv.amb ?? ambient.intensity; shadowsOn = sv.shadowsOn !== false;
+  $('amb').value = Math.round(ambient.intensity / 2.2 * 100); $('oAmb').textContent = $('amb').value;
+  $('shadowBtn').classList.toggle('on', shadowsOn); $('shadowBtn').textContent = shadowsOn ? 'Activées' : 'Désactivées'; ground.visible = shadowsOn;
+  buildLightsUI(); applyLights();
+} else usePreset('3/4 classique');
+resize();
+setModel(demoFigurine(), 'Figurine de démo', false);
+window.__hp = { M, P, L, C, scene, camera, renderer, capture, setMode };
+</script>
+</body>
+</html>
